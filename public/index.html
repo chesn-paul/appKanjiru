@@ -77,6 +77,8 @@
 
     </div>
 
+    <button onclick="renderVideo(uniqueKey)">Hello</button>
+
     <script>
         // Variables globales pour les flux média et l'enregistrement
         let medias = [];
@@ -95,6 +97,7 @@
         let btnAudio = false;
         let btnScreen = false;
         let saved = false;
+        let end;
 
         let user = "2e0bf452-8367-4a55-aa5b-179b3eebcc9f";
         let paid = true; 
@@ -135,17 +138,26 @@
                 this.recorder = new MediaRecorder(stream, {
                     mimeType: `${this.type}; ${this.codec}`
                 });
-                this.recorder.ondataavailable = (event) => {
-                    if (event.data.size > 0) {
-                        this.chunk.push(event.data);
-                    }
-                };
-                this.recorder.onstop = () => {
-                    //saveTracks(this);
-                };
+
                 this.recorder.start();
             };
 
+            stopRecorder(){
+                return new Promise((resolve) => {
+                    this.recorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            this.chunk.push(event.data);
+                        }
+                    };
+
+                    this.recorder.onstop = async () => { 
+                        await saveTracks(this);  
+                        resolve();
+                    };
+
+                    this.recorder.stop();
+                });
+            };
         }
 
         class videoSize {
@@ -252,9 +264,10 @@
                             width: { ideal: 300 }
                         }
                     }));
+
                     document.getElementById('toggleVideo').style.backgroundImage = "url('../ressource/bx-video-recording.png')"
                     webcamVideo.style.display = 'block';
-                    webcamVideo.srcObject = webcam.stream;
+                    webcamVideo.srcObject = webcam.stream
                     webcamVideo.play();
                     webcam.setRatio();
                     previewWebcam = sizer(webcam.setting); 
@@ -478,15 +491,9 @@
         });
 
 
-        async function saving(){
-            await saveTracks(webcam);
-            await saveTracks(screen);
-            await saveTracks(audio);
-        }
-
         async function saveTracks (item) {
-            console.log(item.name)
-            const blob = new Blob(item.chunk, { type: item.type });
+            console.log(item.name);
+            const blob = new Blob(item.chunk, { type: item.type })
             const file = new File([blob], `${item.name}.webm`, { type: item.type });
             const formData = new FormData();
             formData.append('file', file);
@@ -499,6 +506,7 @@
                     throw new Error(`Failed to save ${item.name}`);
                 }
                 const rep = await response.text();
+                end = true;
                 console.log(rep);
             } catch (error){
                 console.log(error);
@@ -662,6 +670,7 @@
                 videoBitsPerSecond: 1000000
             });
 
+
             previewRecorder.ondataavailable = (event) => {
                 if (event.data.size > 0) {
                     recordedChunks.push(event.data);
@@ -679,22 +688,12 @@
         }
 
         // Arrête l'enregistrement du flux média
-        function stopRecording() {
+        async function stopRecording() {
 
             if(screen.rec || webcam.rec){
                 previewRecorder.stop(); 
             }
-        
-
-            medias.forEach(item => {
-                item.recorder.stop();
-                if (item.stream) {
-                    item.stream.getTracks().forEach(track => track.stop());
-                }
-            });
-
-            saving();
-
+            
             if(screen.rec || webcam.rec){
                 screenVideo.style.display = 'none';
                 webcamVideo.style.display = 'none';
@@ -704,6 +703,12 @@
                 document.getElementById('audioGif').style.display = 'none';
                 document.getElementById('recordedAudio').style.display = 'block';
             }
+
+            for (let item of medias) {
+                await item.stopRecorder();
+            }
+
+            // renderVideo(uniqueKey)
         }
 
 
