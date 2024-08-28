@@ -1,0 +1,303 @@
+body {
+    font-family: Arial, sans-serif;
+    color: #003a7e;
+    background-color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 20px;
+    padding-left: 40px;
+    width: min-content;
+}
+
+h1 {
+    color: #003a7e;
+}
+
+/* Style des éléments vidéo et autres éléments de la page */
+video {
+    border-radius: 8px;
+}
+
+canvas {
+    border-radius: 8px;
+    width: 800px;
+    height: 450px;
+}
+
+#timer {
+    position: absolute;
+    width: fit-content;
+    top: 0;
+    left: 0;
+    text-align: center;
+    padding: 5px 10px;
+    border-radius: 8px 0;
+    font-weight: bold;
+    color: white;
+    background-color: #003a7e;
+}
+
+/* Style des options */
+.option-disabled {
+    text-decoration: line-through;
+    color: gray;
+}
+
+.option-enabled {
+    text-decoration: none;
+    color: #003a7e;
+}
+
+.device-select {
+    display: none;
+    border: none;
+    color: white;
+    background: none;
+    width: 50px;
+    margin-left: 5px;
+}
+
+label {
+    font-weight: bold;
+}
+
+/* Style des boutons */
+.btn {
+    background-color: #003a7e;
+    color: #ffffff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 5px 5px;
+    width: 140px;
+    text-align: center;
+}
+
+.btn:hover {
+    background-color: #87bee8;
+    color: #003a7e;
+}
+
+/* Style du loader */
+#loader {
+    border: 5px solid #ffffff;
+    border-radius: 50%;
+    border-top: 5px solid #003a7e;
+    width: 17px;
+    height: 17px;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Style de la fenêtre modale */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 400px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+#speedControl {
+    display: none;
+    margin-top: 20px;
+}
+
+#playbackRateValue {
+    font-weight: bold;
+}
+
+.info{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: fit-content;
+}
+
+#fileNameInput{
+    font-size: 25pt;
+    border: none;
+    margin: 20px 0;
+}
+
+#copy{
+    border: none;
+    background-color: #003a7e;
+    color: white;
+    padding: 5px 15px;
+    margin: 0;
+}
+
+#copy:hover{
+    background-color: white;
+    color: #003a7e;
+}
+
+#copyLink{
+    display: flex;
+    align-items: center;
+    border: 1px #003a7e solid;
+    padding: 0;
+    width: fit-content;
+    border-radius: 5px;
+}
+
+#link{
+    border: none;
+    padding: 0;
+    background-color: white;
+    padding: 0 10px;
+    width: 300px;
+}
+
+input:focus{
+    outline: none;
+}
+
+#flag{
+    position: absolute;
+    width: fit-content;
+    top: 0;
+    left: 0;
+    text-align: center;
+    background-color: #fecf00e3;
+    padding: 5px 10px;
+    border-radius: 8px 0;
+}
+
+.device-button{
+    width: 33px;
+    height: 33px;
+    border-radius: 10px;
+    background-color: #003a7e;
+    background-size: contain;
+    border: 4px solid #003a7e;
+    cursor: pointer;
+}
+
+.container{
+    background-color: #87bee8dc;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    width: min-content;
+    margin: 0 5px;
+}
+
+#toggleVideo{
+    background-image: url('../ressource/bx-video-recording-cross.png');
+}
+
+#toggleAudio{
+    background-image: url('../ressource/bx-microphone-cross.png');
+}
+
+#toggleScreen{
+    background-image: url('../ressource/bx-export-cross.png');
+}
+
+.clrBtn{
+    width: 35px;
+    height: 35px;
+    background-color: transparent;
+    background-size: contain;
+    border: none;
+    cursor: pointer;
+}
+
+#stopRecording{
+    background-image: url('../ressource/bx-stop.png');
+}
+
+#pauseResumeRecording{
+    background-image: url('../ressource/bx-pause.png');
+}
+
+#startRecording{
+    position: absolute;
+    display: flex;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 450px;
+    backdrop-filter: blur(3px);
+    background-color: transparent;
+    background-size: contain;
+    border: none;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+#menu{
+    position: absolute;
+    bottom: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+#modal{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: grayscale(1);
+}
+
+#modal-content{
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    width: 350px;
+}

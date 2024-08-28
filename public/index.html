@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanjiru</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <input type="text" id="fileNameInput" placeholder="Titre de votre média">
+    <div style="position: relative; width: min-content;">
+        <canvas id="canvas" width="800" height="450"></canvas>
+        <img id="audioGif" width="300px" src="ressource/audio.png" style="display: none;">
+        <button id="startRecording" style="display: none;"><img src="./ressource/bxs-right-arrow.png" width="60px"></button>
+        <div id="timer">00:00:00</div>
+        <div id="menu">
+            <button id="pauseResumeRecording" style="display: none;" class="clrBtn"></button>
+            <div id="webcam" class="container"> 
+                <button class="device-button" id="toggleVideo"></button>
+                <select id="videoSelect" class="device-select"></select>
+            </div>
+            <div id="audio" class="container">
+                <button class="device-button" id="toggleAudio"></button>
+                <select id="audioSelect" class="device-select" ></select>
+            </div>
+            <div id="screen" class="container">
+                <button class="device-button" id="toggleScreen"></button>
+                <select id="screenSelect" class="device-select"></select>
+            </div>
+            <button id="stopRecording" style="display: none;" class="clrBtn"></button>
+        </div>
+    </div>
+
+    <div id="recordedVideo" style="display: none; position: relative;">
+        <video id="videoRecorded" controls width="800px" height="450px"></video>
+        <div id="flag">Low fps preview</div>
+        <div id="modal" style="display: none;">
+            <div id="modal-content">
+                <p>Vous ne pourrez plus modifier la vidéo aprés l'avoir sauvegardée !</p>
+                <div>
+                    <button id="validModal" class="btn">Ok</button>
+                    <button id="return" class="btn">Retour</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="recordedAudio" controls style="display: none;"></audio>
+    <div style="margin: 10px 0;">
+        <div class="info">
+            <div id="loader" style="display: none;"></div>
+            <div id="message"> </div>
+        </div>
+
+        <div id="copyLink" style="display: none; margin: 10px 0;">
+            <button id="copy">Copier</button>
+            <input id="link" type="text" value="monlien" disabled>
+        </div>
+    </div>
+
+    <div style="display: flex; justify-content: center; width: 100%; margin: 10px 0;">
+
+        <div id="speedControl" style="display: none; margin: 10px 0;">
+            <label for="playbackRate">Accélerer l'enregistrement :</label>
+            <input type="range" id="playbackRate" min="0.5" max="2.5" step="0.1" value="1">
+            <span id="playbackRateValue">1</span>x
+            <div id="loader" style="display: none;"></div>
+        </div>
+
+        <button class="btn" id="speedVideo" style="display: none;">Vitesse de lecture</button> 
+        <button class="btn" id="reRecord" style="display: none;">Réenregistrer</button>
+        <button class="btn" id="saveFiles" style="display: none;">Sauvegarder</button>
+        <button class="btn" id="generateShareLink" style="display: none;">Générer un lien</button>
+        <button class="btn" id="downloadVideo" style="display: none;">Télécharger</button>
+
+    </div>
+
+    <script>
+        // Variables globales pour les flux média et l'enregistrement
+        let medias = [];
+        let render = [];
+        let recordedChunks = [];
+        let previewRecorder;
+        let startTime;
+        let timerInterval;
+        let elapsedTime = 0;
+        let isPaused = false;
+        let uniqueKey = generateUniqueKey();
+        let screenWidth;
+        let screenHeight;
+        let url;
+        let btnVideo = false;
+        let btnAudio = false;
+        let btnScreen = false;
+        let saved = false;
+
+        let user = "2e0bf452-8367-4a55-aa5b-179b3eebcc9f";
+        let paid = true; 
+
+        const canvas = document.getElementById('canvas');
+        const preview = document.getElementById('videoRecorded');
+
+        let screenSettings = null;
+        let previewScreen; 
+        let previewWebcam;
+
+        const webcamVideo = document.createElement('video');
+        const screenVideo = document.createElement('video');
+
+        class mediaFlux {
+
+            recorder = null;
+            chunk = [];
+            stream = null;
+            setting = null;
+            rec = false;
+
+            constructor(type, codec, name){
+                this.type = type; 
+                this.codec = codec;
+                this.name = uniqueKey + '_' + name;
+            }
+            
+            setStream(stream){
+                this.stream = stream
+            }
+
+            setRatio(){
+                this.setting = this.stream.getVideoTracks()[0].getSettings().aspectRatio;
+            }
+
+            setRecorder(stream){
+                this.recorder = new MediaRecorder(stream, {
+                    mimeType: `${this.type}; ${this.codec}`
+                });
+                this.recorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        this.chunk.push(event.data);
+                    }
+                };
+                this.recorder.onstop = () => {
+                    saveTracks(this);
+                };
+                this.recorder.start();
+            };
+
+        }
+
+        class videoSize {
+            constructor(dx, dy, dw, dh){
+                this.x = dx;
+                this.y = dy;
+                this.w = dw;
+                this.h = dh;
+            }
+        }
+
+        var audio = new mediaFlux('audio/webm','codecs=opus', 'audio');
+        var webcam = new mediaFlux('video/webm','codecs=vp8', 'webcam');
+        var screen = new mediaFlux('video/webm','codecs=vp8', 'video');
+
+        function sizer(videoSettings){
+            if(videoSettings < (canvas.width/canvas.height)){
+                dh = canvas.height
+                dw = videoSettings * canvas.height
+                dx = (canvas.width - dw) / 2
+                dy = 0
+            }else{
+                dh = canvas.width / videoSettings
+                dw = canvas.width
+                dx = 0
+                dy = (canvas.height - dh) / 2
+            }
+            const positioner =  new videoSize(dx,dy,dw,dh);
+            return positioner
+        }
+
+        function paint(){
+
+            const FPS = 30;
+            let myTimeout;
+            let ctx = canvas.getContext('2d');
+
+
+            function draw() {
+            
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "#aec0d6";
+                ctx.fillRect(0, 0, canvas.width, canvas.height); 
+
+                if (!screen.stream){
+                    if(webcam.stream){
+                        ctx.drawImage(webcamVideo, previewWebcam.x, previewWebcam.y, previewWebcam.w, previewWebcam.h);
+                    }
+                }else{
+                    ctx.drawImage(screenVideo, previewScreen.x, previewScreen.y, previewScreen.w, previewScreen.h);
+                    if(webcam.stream){
+                        ctx.drawImage(webcamVideo, canvas.width - 129, previewScreen.y + 4, 125, (125/webcam.setting));
+                    }
+                }
+
+                myTimeout = setTimeout(draw, 1000 / FPS);
+            }
+
+            myTimeout = setTimeout(draw, 1000 / FPS);
+        }
+
+        paint();
+        window.addEventListener('message', function(event) {
+            
+            if (event.origin !== 'https://hammerhead-app-4avhn.ondigitalocean.app') {
+                return;  // Ignore les messages d'origines non approuvées
+            }
+            
+            const data = event.data;
+            console.log('User ID:', data.userId);
+            console.log('Is Admin:', data.isAdmin);
+        });
+
+        // Récupère les dispositifs médias disponibles (caméras, micros, etc.)
+        navigator.mediaDevices.enumerateDevices().then(devices => {
+            const videoSelect = document.getElementById('videoSelect');
+            const audioSelect = document.getElementById('audioSelect');
+
+            devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `${device.kind} ${device.deviceId}`;
+
+                if (device.kind === 'videoinput') {
+                    videoSelect.appendChild(option);
+                } else if (device.kind === 'audioinput') {
+                    audioSelect.appendChild(option);
+                }
+            });
+        });
+        ////////////////////////////////////////////////////////////////////////
+        // Gestion du basculement de la caméra
+        document.getElementById('toggleVideo').addEventListener('click', async (event) => {
+            btnVideo = !btnVideo
+            const videoSelect = document.getElementById('videoSelect');
+            videoSelect.style.display = btnVideo ? 'inline' : 'none';
+
+            if (btnVideo) {
+                try {
+                    webcam.setStream(await navigator.mediaDevices.getUserMedia({ 
+                        video: {
+                            frameRate: 30, 
+                            width: { ideal: 300 }
+                        }
+                    }));
+                    document.getElementById('toggleVideo').style.backgroundImage = "url('../ressource/bx-video-recording.png')"
+                    webcamVideo.style.display = 'block';
+                    webcamVideo.srcObject = webcam.stream;
+                    webcamVideo.play();
+                    webcam.setRatio();
+                    previewWebcam = sizer(webcam.setting); 
+                    webcam.rec = true; 
+                } catch (err) {
+                    console.error("Error accessing video stream:", err);
+                    alert("Erreur d'accès à la caméra : " + err.message);
+                }
+            } else {
+                if (webcam.stream) {
+                    webcam.stream.getTracks().forEach(track => track.stop());
+                    webcam.stream = null;
+                    webcam.rec = false; 
+                }
+                document.getElementById('toggleVideo').style.backgroundImage = "url('../ressource/bx-video-recording-cross.png')"
+                webcamVideo.style.display = 'none';
+            }
+            toggleStartRecordingButton();
+        });
+
+        // Gestion du basculement du micro
+        document.getElementById('toggleAudio').addEventListener('click', async (event) => {
+            btnAudio = !btnAudio
+            const audioSelect = document.getElementById('audioSelect');
+            audioSelect.style.display = btnAudio ? 'inline' : 'none';
+
+            if (btnAudio) {
+                try {
+                    audio.setStream(await navigator.mediaDevices.getUserMedia({ audio: true }));
+                    document.getElementById('toggleAudio').style.backgroundImage = "url('../ressource/bx-microphone.png')"
+                    audio.rec = true;
+                } catch (err) {
+                    console.error("Error accessing audio stream:", err);
+                    alert("Erreur d'accès au micro : " + err.message);
+                }
+            } else {
+                if (audio.stream) {
+                    audio.stream.getTracks().forEach(track => track.stop());
+                    document.getElementById('toggleAudio').style.backgroundImage = "url('../ressource/bx-microphone-cross.png')"
+                    audio.rec = false;
+                }
+            }
+            toggleStartRecordingButton();
+        });
+
+        // Gestion du basculement du partage d'écran
+        document.getElementById('toggleScreen').addEventListener('click', async (event) => {
+            btnScreen = !btnScreen
+            if (btnScreen) {
+                try {
+                    screen.setStream(await navigator.mediaDevices.getDisplayMedia({
+                        video: {
+                            cursor: 'always',
+                            frameRate: 30, 
+                            width: { ideal: 1920 }, 
+                            height: { ideal: 1080 }
+                        }
+                    }));
+                    screenVideo.srcObject = screen.stream;
+                    screenVideo.onloadedmetadata = () => {
+                        screenWidth = screenVideo.videoWidth;
+                        screenHeight = screenVideo.videoHeight;
+                    };
+                    if (screen.stream.getVideoTracks()[0].getSettings().displaySurface === "browser"){
+                        screenSettings = window.innerWidth / window.innerHeight;
+                    }else{
+                        screen.setRatio();
+                        screenSettings = screen.setting;
+                    }
+                    screenVideo.play();
+                    previewScreen = sizer(screenSettings); 
+                    document.getElementById('toggleScreen').style.backgroundImage = "url('../ressource/bx-export.png')"
+                    screen.rec = true;
+                } catch (err) {
+                    console.error("Error accessing screen stream:", err);
+                    alert("Erreur de partage d'écran : " + err.message);
+                }
+            } else {
+                if (screen.stream) {
+                    screen.stream.getTracks().forEach(track => track.stop());
+                    screen.stream = null;
+                    document.getElementById('toggleScreen').style.backgroundImage = "url('../ressource/bx-export-cross.png')"
+                    screen.rec = false;
+                }
+                screenVideo.srcObject = null;
+            }
+            toggleStartRecordingButton();
+        });
+
+        // Active ou désactive le bouton de démarrage de l'enregistrement en fonction des options sélectionnées
+        function toggleStartRecordingButton() {
+            const isAnyOptionEnabled = btnVideo || btnAudio || btnScreen;
+
+            document.getElementById('startRecording').style.display = isAnyOptionEnabled ? 'inline' : 'none';
+        }
+
+        // Démarre l'enregistrement
+        document.getElementById('startRecording').addEventListener('click', () => {
+
+            document.getElementById('message').textContent = ' ';
+
+            [audio, screen, webcam].forEach(item => {
+                if (item.rec){
+                    medias.push(item);
+                }
+                render.push(item.rec);
+            });
+
+            medias.forEach(item => {
+                item.setRecorder(item.stream);
+            });
+
+            if(screen.rec || webcam.rec){
+
+                const canvaStream = canvas.captureStream()
+
+                const tracks = [];
+                tracks.push(...canvaStream.getTracks());
+                if (audio.rec) tracks.push(...audio.stream.getTracks());
+
+                const combinedStream = new MediaStream(tracks);
+
+                startRecording(combinedStream);
+
+            }else{
+
+                canvas.style.display = 'none'
+                document.getElementById('toggleVideo').style.display = 'none'
+                document.getElementById('toggleScreen').style.display = 'none'
+                document.getElementById('audioGif').style.display = 'block';
+            }
+
+            startTimer();
+            document.getElementById('toggleVideo').disabled = true;
+            document.getElementById('toggleAudio').disabled = true;
+            document.getElementById('toggleScreen').disabled = true;
+            document.getElementById('startRecording').style.display = 'none';
+            if (paid){document.getElementById('pauseResumeRecording').style.display = 'inline'};
+            document.getElementById('stopRecording').style.display = 'inline';
+        });
+
+        // Met en pause ou reprend l'enregistrement
+        document.getElementById('pauseResumeRecording').addEventListener('click', () => {
+            if (isPaused) {
+                previewRecorder.resume();
+                medias.forEach(item=>{
+                    item.recorder.resume();
+                });
+                document.getElementById('pauseResumeRecording').style.backgroundImage = "url('../ressource/bx-pause.png')";
+                startTimer();
+            } else {
+                previewRecorder.pause();
+                medias.forEach(item=>{
+                    item.recorder.pause();
+                });
+                document.getElementById('pauseResumeRecording').style.backgroundImage = "url('../ressource/bxs-right-arrow.png')";
+                pauseTimer();
+            }
+            isPaused = !isPaused;
+        });
+
+        // Arrête l'enregistrement
+        document.getElementById('stopRecording').addEventListener('click', () => {
+            stopRecording();
+            stopTimer();
+            document.getElementById('stopRecording').style.display = 'none';
+            document.getElementById('pauseResumeRecording').style.display = 'none';
+            document.getElementById('webcam').style.display = 'none';
+            document.getElementById('audio').style.display = 'none';
+            document.getElementById('screen').style.display = 'none';
+        });
+
+        // Réenregistre
+        document.getElementById('reRecord').addEventListener('click', () => {
+            window.location.reload();
+        });
+
+        window.addEventListener("beforeunload", function (event) {
+            if(!saved){deleteLastFile(uniqueKey)};
+        });
+
+        document.getElementById('speedVideo').addEventListener('click', () => {
+            document.getElementById('speedVideo').style.display = 'none';
+            if(paid){document.getElementById('speedControl').style.display = 'block'};
+        });
+
+        // Télécharge la vidéo enregistrée
+        document.getElementById('downloadVideo').addEventListener('click', () => {
+            downloadVideo(uniqueKey);
+        });
+
+
+        // Met à jour la valeur de la vitesse de lecture affichée
+        document.getElementById('playbackRate').addEventListener('change', (event) => {
+            applyPlaybackRate(uniqueKey);
+        });
+
+        document.getElementById('playbackRate').addEventListener('input', (event) => {
+            document.getElementById('playbackRateValue').textContent = event.target.value;
+        });
+
+        // Génère un lien de partage pour la vidéo enregistrée
+        document.getElementById('generateShareLink').addEventListener('click', async () => {
+            document.getElementById('generateShareLink').style.display = 'none';
+            document.getElementById('link').value = url;
+            document.getElementById('copyLink').style.display = 'flex';
+        });
+
+        // Sauvegarde les fichier dans le Space DO
+        document.getElementById('saveFiles').addEventListener('click', async() => {
+            document.getElementById('modal').style.display = 'flex';
+            document.getElementById('saveFiles').style.display = 'none'; 
+        });
+
+        document.getElementById('validModal').addEventListener('click', async() => {
+            saveRecordedVideo(uniqueKey);
+        });
+
+        document.getElementById('return').addEventListener('click', async() => {
+            document.getElementById('modal').style.display = 'none';
+            document.getElementById('saveFiles').style.display = 'flex';
+        });
+
+
+        async function saveTracks (item) {
+            const blob = new Blob(item.chunk, { type: item.type });
+            const file = new File([blob], `${item.name}.webm`, { type: item.type });
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`/tracks`, {
+                    method: 'POST',
+                    body : formData
+                })
+                if (!response.ok) {
+                    throw new Error(`Failed to save ${item.name}`);
+                }
+            } catch (e){};
+        }
+
+        async function renderVideo(key) {
+
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('message').textContent = 'Traitement du média...';
+
+            const webRatio = webcam.setting;
+
+            try {
+                const response = await fetch(`/render/${key}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body : JSON.stringify({render, screenWidth, screenHeight, webRatio})
+                })
+                if (!response.ok) {
+                    throw new Error(`Rendering failed.`);
+                }
+
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('message').textContent = ' ';
+                document.getElementById('saveFiles').style.display = 'inline';
+
+                if(screen.rec || webcam.rec){
+                    preview.srcObject = null;
+                    preview.src = `./common/media/${key}.mp4`;
+                    document.getElementById('speedVideo').style.display = 'inline';
+                    document.getElementById('flag').textContent = 'Version finale';
+                    document.getElementById('flag').style.backgroundColor = '#00dd4ae3';
+                    document.getElementById('reRecord').style.display = 'inline';
+                    setTimeout(function() {
+                        document.getElementById('flag').style.display = "none";
+                    }, 3000);
+                }else{
+                    document.getElementById('recordedAudio').src = `./common/media/${key}_audio.mp3`;
+                }
+            } catch (error){
+                document.getElementById('message').textContent = "Erreur lors de la compilation...";
+            }
+        }
+
+        // Sauvegarde la vidéo enregistrée sur le serveur
+        async function saveRecordedVideo(key) {
+
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('message').textContent = 'Sauvegarde du média en cours...';
+
+            const fileName = document.getElementById('fileNameInput').value || 'enregistrement_kanjiru'
+            const time = document.getElementById('timer').textContent;
+
+            try {
+                const response = await fetch(`/upload/${key}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body : JSON.stringify({fileName, render, time, user})
+                });
+
+                url = await response.text();
+
+                saved = true;
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload video');
+                }
+
+                if(paid){document.getElementById('downloadVideo').style.display = 'inline'};
+
+                if(user != "invit"){
+                    document.getElementById('generateShareLink').style.display = 'inline';
+                }else{
+                    document.getElementById('link').value = url;
+                    document.getElementById('copyLink').style.display = 'flex';
+                }
+
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('saveFiles').style.display= 'none';
+                document.getElementById('speedVideo').style.display = 'none';
+                document.getElementById('modal').style.display = 'none';
+                document.getElementById('message').textContent = ' ';
+
+            } catch (error) {
+                document.getElementById('message').textContent = 'Communication with server failed.';
+            }
+        }
+
+        // Applique la vitesse de lecture (générer une nouvelle video avec une nouvelle key)
+        async function applyPlaybackRate(key) {
+
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('message').textContent = 'Média en cours de traitement...'
+            const playbackRate = document.getElementById('playbackRate').value;
+
+            try {
+                const response = await fetch(`/speed/${key}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body : JSON.stringify({playbackRate, render})
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload video');
+                }
+                
+                document.getElementById('playbackRate').disabled = false;
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('message').textContent = ' ';
+                document.getElementById('speedControl').style.display = 'none';
+                document.getElementById('speedVideo').style.display = 'none';
+
+            } catch (error) {
+                document.getElementById('message').textContent = error;
+            }
+        };
+
+        async function deleteLastFile(key) {
+            try {
+                const response = await fetch(`/trash/${key}`, {method: 'POST'});
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete last file.');
+                }
+
+            } catch (e) {}
+            
+        }
+
+        async function downloadVideo() {
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('message').textContent = 'Fichier en cours de téléchargement...'
+            try {
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.getElementById('message').textContent = ' '
+                    document.getElementById('downloadVideo').style.display='none'
+                    document.getElementById('loader').style.display = 'none'
+
+            } catch (error){
+                document.getElementById('message').textContent = 'Erreur de communication avec le serveur.'
+            }   
+        }
+
+        function startRecording(stream) {
+
+            previewRecorder = new MediaRecorder(stream, {
+                mimeType: 'video/webm; codecs=vp8, opus',
+                videoBitsPerSecond: 1000000
+            });
+
+            previewRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+
+            previewRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const recordedVideoURL = URL.createObjectURL(blob);
+                preview.src = recordedVideoURL;
+                document.getElementById('recordedVideo').style.display = 'block';
+            };
+
+            previewRecorder.start();
+        }
+
+        // Arrête l'enregistrement du flux média
+        function stopRecording() {
+
+            if(screen.rec || webcam.rec){
+                previewRecorder.stop(); 
+            }
+        
+
+            medias.forEach(item => {
+                item.recorder.stop();
+                if (item.stream) {
+                    item.stream.getTracks().forEach(track => track.stop());
+                }
+            });
+
+            renderVideo(uniqueKey);
+
+            if(screen.rec || webcam.rec){
+                screenVideo.style.display = 'none';
+                webcamVideo.style.display = 'none';
+                canvas.style.display='none'
+                document.getElementById('timer').style.display = 'none';
+            }else{
+                document.getElementById('audioGif').style.display = 'none';
+                document.getElementById('recordedAudio').style.display = 'block';
+            }
+        }
+
+
+
+        // Démarre le chronomètre
+        function startTimer() {
+            startTime = Date.now() - elapsedTime;
+            timerInterval = setInterval(() => {
+                elapsedTime = Date.now() - startTime;
+                const minutes = Math.floor((elapsedTime % 3600000) / 60000);
+                const seconds = Math.floor((elapsedTime % 60000) / 1000);
+                document.getElementById('timer').textContent = `${pad(minutes)}:${pad(seconds)}`;
+            }, 1000);
+        }
+
+        // Met en pause le chronomètre
+        function pauseTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // Arrête le chronomètre
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        // Ajoute un zéro au début des nombres inférieurs à 10
+        function pad(number) {
+            return number < 10 ? '0' + number : number;
+        }
+
+        // Génère une clé unique pour identifier les enregistrements
+        function generateUniqueKey() {
+            return 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'.replace(/[x]/g, function () {
+                const r = Math.random() * 16 | 0;
+                return r.toString(16);
+            });
+}
+
+    </script>
+</body>
+
+</html>
