@@ -29,10 +29,12 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    console.log(file.originalname)
     cb(null, file.originalname);
   },
 });
+
+const filePath = path.join(__dirname, "common/media", 'test.txt');
+fs.writeFileSync(filePath, 'Test content');
 
 const upload = multer({ storage: storage });
 
@@ -115,7 +117,6 @@ app.post("/upload/:key", (req, res) => {
     let objectKey;
     let bucket;
     let params;
-    let type;
 
     if(!onlyAudio){
 
