@@ -75,8 +75,6 @@
         <button class="btn" id="generateShareLink" style="display: none;">Générer un lien</button>
         <button class="btn" id="downloadVideo" style="display: none;">Télécharger</button>
 
-        <button onclick="renderVideo(uniqueKey)">hello</button>
-
     </div>
 
     <script>
@@ -143,7 +141,7 @@
                     }
                 };
                 this.recorder.onstop = () => {
-                    saveTracks(this);
+                    //saveTracks(this);
                 };
                 this.recorder.start();
             };
@@ -480,7 +478,14 @@
         });
 
 
+        async function saving(){
+            await saveTracks(webcam);
+            await saveTracks(screen);
+            await saveTracks(audio);
+        }
+
         async function saveTracks (item) {
+            console.log(item.name)
             const blob = new Blob(item.chunk, { type: item.type });
             const file = new File([blob], `${item.name}.webm`, { type: item.type });
             const formData = new FormData();
@@ -493,7 +498,8 @@
                 if (!response.ok) {
                     throw new Error(`Failed to save ${item.name}`);
                 }
-                const att = await response.text();
+                const rep = await response.text();
+                console.log(rep);
             } catch (error){
                 console.log(error);
             };
@@ -534,8 +540,11 @@
                 }else{
                     document.getElementById('recordedAudio').src = `./common/media/${key}_audio.mp3`;
                 }
+
+                return 'great';
             } catch (error){
                 document.getElementById('message').textContent = error;
+                return error;
             }
         }
 
@@ -684,7 +693,7 @@
                 }
             });
 
-            // renderVideo(uniqueKey);
+            saving();
 
             if(screen.rec || webcam.rec){
                 screenVideo.style.display = 'none';

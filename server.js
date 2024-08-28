@@ -33,7 +33,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage: storage, limits: { fileSize: 100 * 1024 * 1024 } });
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -41,7 +41,12 @@ app.use(express.static(path.join(__dirname, "common")));
 
 app.use(bodyParser.json());
 
-app.post("/tracks", upload.single("file"), (req, res) => {});
+app.post("/tracks", upload.single("file"), (req, res) => {
+  if (!req.file) {
+    return res.status(400).send('Aucun fichier téléchargé.');
+  }
+  res.send('Sauvegardé.');
+});
 
 app.post("/render/:key", (req, res) => {
   async function main() {
