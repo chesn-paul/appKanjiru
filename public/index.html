@@ -513,6 +513,7 @@
                 })
                 if (!response.ok) {
                     throw new Error(`Rendering failed.`);
+                    console.log(response);
                 }
 
                 document.getElementById('loader').style.display = 'none';
