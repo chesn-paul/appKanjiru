@@ -60,7 +60,7 @@ app.post("/render/:key", (req, res) => {
     dir.push(path.join(mainDir, `${uniqueKey}_video.webm`));
     dir.push(path.join(mainDir, `${uniqueKey}_webcam.webm`));
     let videoDir;
-
+    console.log('te')
     if(components[1] && components[2]){
 
       videoDir = path.join(mainDir, `${uniqueKey}_wv.mp4`);
