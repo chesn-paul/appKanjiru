@@ -33,9 +33,6 @@ const storage = multer.diskStorage({
   },
 });
 
-const filePath = path.join(__dirname, "common/media", 'test.txt');
-fs.writeFileSync(filePath, 'Test content');
-
 const upload = multer({ storage: storage });
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -44,7 +41,7 @@ app.use(express.static(path.join(__dirname, "common")));
 
 app.use(bodyParser.json());
 
-app.post("/tracks", upload.single("file"));
+app.post("/tracks", upload.single("file"), (req, res) => {});
 
 app.post("/render/:key", (req, res) => {
   async function main() {

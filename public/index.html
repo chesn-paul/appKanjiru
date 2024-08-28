@@ -483,7 +483,6 @@
             const file = new File([blob], `${item.name}.webm`, { type: item.type });
             const formData = new FormData();
             formData.append('file', file);
-
             try {
                 const response = await fetch(`/tracks`, {
                     method: 'POST',
@@ -516,7 +515,6 @@
                 if (!response.ok) {
                     throw new Error(`Rendering failed.`);
                 }
-                console.log(response);
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('message').textContent = ' ';
                 document.getElementById('saveFiles').style.display = 'inline';
