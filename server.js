@@ -21,6 +21,8 @@ const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
 const region = 'fra1';
 const __dirname = import.meta.dirname;
 
+console.log(fs.readdir(__dirname));
+
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const storage = multer.diskStorage({
@@ -481,5 +483,5 @@ function mediaType(render){
 }
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(__dirname);
 });
