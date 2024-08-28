@@ -21,7 +21,9 @@ const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
 const region = 'fra1';
 const __dirname = import.meta.dirname;
 
-console.log(fs.readdir(__dirname));
+console.log(fs.readdirSync(__dirname));
+console.log(fs.readdirSync(__dirname+"/common"));
+console.log(fs.readdirSync(__dirname+"/common/media"));
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
