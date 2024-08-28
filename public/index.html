@@ -487,9 +487,6 @@
             try {
                 const response = await fetch(`/tracks`, {
                     method: 'POST',
-                    headers:{
-                        'Content-Type': 'multipart/form-data'
-                    },
                     body : formData
                 })
                 if (!response.ok) {
