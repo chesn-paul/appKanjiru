@@ -347,7 +347,6 @@
         // Active ou désactive le bouton de démarrage de l'enregistrement en fonction des options sélectionnées
         function toggleStartRecordingButton() {
             const isAnyOptionEnabled = btnVideo || btnAudio || btnScreen;
-
             document.getElementById('startRecording').style.display = isAnyOptionEnabled ? 'inline' : 'none';
         }
 
@@ -534,7 +533,7 @@
                     document.getElementById('recordedAudio').src = `./common/media/${key}_audio.mp3`;
                 }
             } catch (error){
-                document.getElementById('message').textContent = "Erreur lors de la compilation...";
+                document.getElementById('message').textContent = error;
             }
         }
 
