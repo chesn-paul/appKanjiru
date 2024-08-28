@@ -493,7 +493,9 @@
                     throw new Error(`Failed to save ${item.name}`);
                 }
                 const att = await response.text();
-            } catch (e){};
+            } catch (error){
+                console.log(error);
+            };
         }
 
         async function renderVideo(key) {
@@ -513,9 +515,8 @@
                 })
                 if (!response.ok) {
                     throw new Error(`Rendering failed.`);
-                    console.log(response);
                 }
-
+                console.log(response);
                 document.getElementById('loader').style.display = 'none';
                 document.getElementById('message').textContent = ' ';
                 document.getElementById('saveFiles').style.display = 'inline';
