@@ -57,8 +57,6 @@ app.post("/render/:key", (req, res) => {
     dir.push(path.join(mainDir, `${uniqueKey}_video.webm`));
     dir.push(path.join(mainDir, `${uniqueKey}_webcam.webm`));
     let videoDir;
-    
-    console.log(fs.readdirSync(__dirname+"/common/media"));
 
     if(components[1] && components[2]){
 

@@ -75,6 +75,8 @@
         <button class="btn" id="generateShareLink" style="display: none;">Générer un lien</button>
         <button class="btn" id="downloadVideo" style="display: none;">Télécharger</button>
 
+        <button onclick="renderVideo(uniqueKey)">hello</button>
+
     </div>
 
     <script>
@@ -682,7 +684,7 @@
                 }
             });
 
-            renderVideo(uniqueKey);
+            // renderVideo(uniqueKey);
 
             if(screen.rec || webcam.rec){
                 screenVideo.style.display = 'none';
