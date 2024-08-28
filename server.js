@@ -26,10 +26,10 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "common/media");
-    fs.mkdirSync(uploadDir, { recursive: true });
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
+    console.log(file.originalname)
     cb(null, file.originalname);
   },
 });
@@ -198,7 +198,7 @@ app.post("/upload/:key", (req, res) => {
 });
 
 
-app.post("/speed/:key", upload.single("file"), (req, res) => {
+app.post("/speed/:key", (req, res) => {
   async function main(){
 
     const uniqueKey = req.params.key;//III
