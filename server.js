@@ -42,7 +42,9 @@ app.use(express.static(path.join(__dirname, "common")));
 
 app.use(bodyParser.json());
 
-app.post("/tracks", upload.single("file"));
+app.post("/tracks", upload.single("file")), (res) =>{
+  res.send('File saved.');
+};
 
 app.post("/render/:key", (req, res) => {
   async function main() {

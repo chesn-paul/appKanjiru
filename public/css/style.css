@@ -1,6 +1,6 @@
 body {
     font-family: Arial, sans-serif;
-    color: #003a7e;
+    color: #00509d;
     background-color: #ffffff;
     display: flex;
     flex-direction: column;
@@ -11,7 +11,7 @@ body {
 }
 
 h1 {
-    color: #003a7e;
+    color: #00509d;
 }
 
 /* Style des éléments vidéo et autres éléments de la page */
@@ -35,7 +35,7 @@ canvas {
     border-radius: 8px 0;
     font-weight: bold;
     color: white;
-    background-color: #003a7e;
+    background-color: #00509d;
 }
 
 /* Style des options */
@@ -46,7 +46,7 @@ canvas {
 
 .option-enabled {
     text-decoration: none;
-    color: #003a7e;
+    color: #00509d;
 }
 
 .device-select {
@@ -64,7 +64,7 @@ label {
 
 /* Style des boutons */
 .btn {
-    background-color: #003a7e;
+    background-color: #00509d;
     color: #ffffff;
     border: none;
     padding: 8px 15px;
@@ -77,14 +77,14 @@ label {
 
 .btn:hover {
     background-color: #87bee8;
-    color: #003a7e;
+    color: #00509d;
 }
 
 /* Style du loader */
 #loader {
     border: 5px solid #ffffff;
     border-radius: 50%;
-    border-top: 5px solid #003a7e;
+    border-top: 5px solid #00509d;
     width: 17px;
     height: 17px;
     animation: spin 1s linear infinite;
@@ -165,7 +165,7 @@ label {
 
 #copy{
     border: none;
-    background-color: #003a7e;
+    background-color: #00509d;
     color: white;
     padding: 5px 15px;
     margin: 0;
@@ -173,13 +173,13 @@ label {
 
 #copy:hover{
     background-color: white;
-    color: #003a7e;
+    color: #00509d;
 }
 
 #copyLink{
     display: flex;
     align-items: center;
-    border: 1px #003a7e solid;
+    border: 1px #00509d solid;
     padding: 0;
     width: fit-content;
     border-radius: 5px;
@@ -212,14 +212,14 @@ input:focus{
     width: 33px;
     height: 33px;
     border-radius: 10px;
-    background-color: #003a7e;
+    background-color: #00509d;
     background-size: contain;
-    border: 4px solid #003a7e;
+    border: 4px solid #00509d;
     cursor: pointer;
 }
 
 .container{
-    background-color: #87bee8dc;
+    background-color: #87bee8;
     border-radius: 10px;
     display: flex;
     align-items: center;
