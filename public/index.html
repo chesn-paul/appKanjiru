@@ -506,7 +506,6 @@
                     throw new Error(`Failed to save ${item.name}`);
                 }
                 const rep = await response.text();
-                end = true;
                 console.log(rep);
             } catch (error){
                 console.log(error);

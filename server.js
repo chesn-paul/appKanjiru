@@ -22,9 +22,9 @@ const region = 'fra1';
 // const __dirname = import.meta.dirname;
 const __dirname = '/root/appKanjiru/';
 
-console.log('pathhh');
+console.log('test de path');
 console.log(path.join(__dirname, "common/media"));
-
+console.log(__dirname);
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -66,12 +66,13 @@ app.post("/render/:key", (req, res) => {
     dir.push(path.join(mainDir, `${uniqueKey}_audio.webm`));
     dir.push(path.join(mainDir, `${uniqueKey}_video.webm`));
     dir.push(path.join(mainDir, `${uniqueKey}_webcam.webm`));
+
     let videoDir;
 
     if(components[1] && components[2]){
 
       videoDir = path.join(mainDir, `${uniqueKey}_wv.mp4`);
-      //await scale(dir[1], req.body.screenWidth, req.body.screenHeight); 
+      // await scale(dir[1], req.body.screenWidth, req.body.screenHeight); 
       await scale(dir[2], 300, 300/req.body.webRatio );
       await videoCam(dir[1], dir[2], videoDir, req.body.screenWidth, req.body.screenHeight);
 
@@ -470,11 +471,10 @@ async function uploadFile(params,filePath) {
     const command = new PutObjectCommand(params);
     const response = await s3Client.send(command);
     console.log('File uploaded: ', response);
+    fs.unlinkSync(filePath);
   } catch (err) {
     console.error('Error: ', err);
   }
-
-  fs.unlinkSync(filePath);
 
 }
 
