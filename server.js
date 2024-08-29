@@ -32,7 +32,8 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     console.log('B');
     console.log(__dirname);
-    const uploadDir = path.join(__dirname, "common/media");
+    const uploadDir = path.join(__dirname, "common/media/buffer.txt");
+
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
