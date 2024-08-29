@@ -22,7 +22,7 @@ const region = 'fra1';
 // const __dirname = import.meta.dirname;
 const __dirname = '/root/appKanjiru/';
 
-console.log('test de path');
+console.log('A');
 console.log(path.join(__dirname, "common/media"));
 console.log(__dirname);
 
@@ -30,6 +30,8 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    console.log('B');
+    console.log(__dirname);
     const uploadDir = path.join(__dirname, "common/media");
     cb(null, uploadDir);
   },
