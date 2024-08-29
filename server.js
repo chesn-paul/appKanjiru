@@ -22,8 +22,8 @@ const region = 'fra1';
 // const __dirname = import.meta.dirname;
 const __dirname = '/root/appKanjiru/';
 
-console.log('test');
-console.log(__dirname);
+console.log('pathhh');
+console.log(path.join(__dirname, "common/media"));
 
 
 ffmpeg.setFfmpegPath(ffmpegPath);
