@@ -19,8 +19,8 @@ const accessKey = process.env.DO_ACCESS_KEY;
 const secretKey = process.env.DO_SECRET_KEY;
 const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
 const region = 'fra1';
-// const __dirname = import.meta.dirname;
-const __dirname = '/root/appKanjiru';
+const __dirname = import.meta.dirname;
+// const __dirname = '/root/appKanjiru';
 
 
 
@@ -28,6 +28,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    console.log(__dirname);
     const uploadDir = path.join(__dirname, "common/media");
     cb(null, uploadDir);
   },
