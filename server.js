@@ -19,8 +19,8 @@ const accessKey = process.env.DO_ACCESS_KEY;
 const secretKey = process.env.DO_SECRET_KEY;
 const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
 const region = 'fra1';
-const __dirname = import.meta.dirname;
-// const __dirname = '/root/appKanjiru';
+// const __dirname = import.meta.dirname;
+const __dirname = '/root/appKanjiru/';
 
 console.log('test');
 console.log(__dirname);
