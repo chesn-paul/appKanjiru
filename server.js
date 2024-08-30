@@ -13,6 +13,17 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {createMedia, getType} from './model/supabase.js' 
 import { ContinuationSeparator } from 'docx';
 
+const s3Client = new S3Client({
+  region: region,
+  endpoint: endpoint,
+  credentials: {
+    accessKeyId: accessKey,
+    secretAccessKey: secretKey,
+  },
+  forcePathStyle: true, 
+  signatureVersion: 'v4'
+});
+
 const app = express();
 const port = 8080;
 const accessKey = process.env.DO_ACCESS_KEY;
@@ -21,10 +32,6 @@ const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
 const region = 'fra1';
 // const __dirname = import.meta.dirname;
 const __dirname = '/root/appKanjiru/';
-
-console.log('A');
-console.log(path.join(__dirname, "common/media"));
-console.log(__dirname);
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
@@ -172,17 +179,6 @@ app.post("/upload/:key", (req, res) => {
       }
     }
 
-    const s3Client = new S3Client({
-      region: region,
-      endpoint: endpoint,
-      credentials: {
-        accessKeyId: accessKey,
-        secretAccessKey: secretKey,
-      },
-      forcePathStyle: true, 
-      signatureVersion: 'v4'
-    });
-
     params = {
       Bucket: bucket,
       Key: objectKey,
@@ -255,53 +251,6 @@ app.post("/trash/:key", (req, res) => {
       }
   });
 });
-
-app.get("/delete/:key", (req, res) => {
-
-  const s3Client = new S3Client({
-    region: region,
-    endpoint: endpoint,
-    credentials: {
-      accessKeyId: accessKey,
-      secretAccessKey: secretKey,
-    },
-  });
-  
-  async function listAndDeleteFiles() {
-
-    try {
-      let continuationToken;
-      let bucket = await getType(req.params.key)
-      do {
-        const command = new ListObjectsV2Command({
-          Bucket: bucket,
-          ContinuationToken: continuationToken,
-        });
-  
-        const response = await s3Client.send(command);
-        const contents = response.Contents;
-  
-        for (const object of contents) {
-          const key = object.Key;
-          if (key.includes(req.params.key)) {
-            console.log(`Suppression du fichier: ${key}`);
-            await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
-          }
-        }
-  
-        continuationToken = response.NextContinuationToken;
-      } while (continuationToken);
-  
-      console.log("Tous les fichiers contenant le numéro ont été supprimés.");
-    } catch (error) {
-      console.error("Erreur lors de la liste ou de la suppression des fichiers:", error);
-    }
-  }
-  
-  listAndDeleteFiles();
-
-});
-
 
 
 function scale(inputPath, width, height) {
@@ -457,18 +406,8 @@ function videoConversion(input, output){
   });
 }
 
-async function uploadFile(params,filePath) {
 
-  const s3Client = new S3Client({
-    region: region,
-    endpoint: endpoint,
-    credentials: {
-      accessKeyId: accessKey,
-      secretAccessKey: secretKey,
-    },
-    forcePathStyle: true, 
-    signatureVersion: 'v4'
-  });
+async function uploadFile(params,filePath) {
 
   try {
     const command = new PutObjectCommand(params);
