@@ -13,6 +13,16 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {createMedia, getType} from './model/supabase.js' 
 import { ContinuationSeparator } from 'docx';
 
+const app = express();
+const port = 8080;
+const accessKey = process.env.DO_ACCESS_KEY;
+const secretKey = process.env.DO_SECRET_KEY;
+const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
+const region = 'fra1';
+
+const __dirname = import.meta.dirname;
+// const __dirname = '/root/appKanjiru/';
+
 const s3Client = new S3Client({
   region: region,
   endpoint: endpoint,
@@ -24,22 +34,11 @@ const s3Client = new S3Client({
   signatureVersion: 'v4'
 });
 
-const app = express();
-const port = 8080;
-const accessKey = process.env.DO_ACCESS_KEY;
-const secretKey = process.env.DO_SECRET_KEY;
-const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
-const region = 'fra1';
-// const __dirname = import.meta.dirname;
-const __dirname = '/root/appKanjiru/';
-
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log('B');
-    console.log(__dirname);
-    const uploadDir = path.join(__dirname, "common/media/buffer.txt");
+    const uploadDir = path.join(__dirname, "common/media/");
 
     cb(null, uploadDir);
   },
