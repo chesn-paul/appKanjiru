@@ -1,28 +1,36 @@
-// -----Librairies-----
-import dotenv from 'dotenv'
-dotenv.config()
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import multer from "multer";
 import path from "path";
 import ffmpegPath from "ffmpeg-static";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
-import bodyParser from 'body-parser';
-import { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand,  } from '@aws-sdk/client-s3' ;
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import {createMedia, getType} from './model/supabase.js' 
-import { ContinuationSeparator } from 'docx';
+import bodyParser from "body-parser";
+import {
+  S3Client,
+  GetObjectCommand,
+  PutObjectCommand,
+  ListObjectsV2Command,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { createMedia, getType } from "./model/supabase.js";
+import { ContinuationSeparator } from "docx";
+import { fileURLToPath } from "url";
+
+// Pour gérer __dirname dans les modules ES6 (sinon erreur lors du lancement de l'app dans la VM)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = 8080;
 const accessKey = process.env.DO_ACCESS_KEY;
 const secretKey = process.env.DO_SECRET_KEY;
-const endpoint = 'https://kanjiruvideo.fra1.digitaloceanspaces.com';
-const region = 'fra1';
+const endpoint = "https://kanjiruvideo.fra1.digitaloceanspaces.com";
+const region = "fra1";
 
-const __dirname = import.meta.dirname;
-// const __dirname = '/root/appKanjiru/';
-
+// Configuration du client S3
 const s3Client = new S3Client({
   region: region,
   endpoint: endpoint,
@@ -30,16 +38,17 @@ const s3Client = new S3Client({
     accessKeyId: accessKey,
     secretAccessKey: secretKey,
   },
-  forcePathStyle: true, 
-  signatureVersion: 'v4'
+  forcePathStyle: true,
+  signatureVersion: "v4",
 });
 
+// Configuration de ffmpeg
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// Configuration de multer pour les fichiers uploadés
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(__dirname, "common/media/");
-
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -47,29 +56,31 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage, limits: { fileSize: 100 * 1024 * 1024 } });
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+});
 
+// Configuration des middlewares
 app.use(express.static(path.join(__dirname, "public")));
-
 app.use(express.static(path.join(__dirname, "common")));
-
 app.use(bodyParser.json());
 
+// Routes
 app.post("/tracks", upload.single("file"), (req, res) => {
   if (!req.file) {
-    return res.status(400).send('Aucun fichier téléchargé.');
+    return res.status(400).send("Aucun fichier téléchargé.");
   }
-  res.send('Sauvegardé.');
+  res.send("Sauvegardé.");
 });
 
 app.post("/render/:key", (req, res) => {
   async function main() {
-
     const mainDir = path.join(__dirname, "common/media");
-    const uniqueKey = req.params.key;//III
+    const uniqueKey = req.params.key; //III
     const outputPath = path.join(mainDir, `${uniqueKey}.mp4`);
 
-    let components = req.body.render;//III
+    let components = req.body.render; //III
     let onlyAudio;
     let dir = [];
     dir.push(path.join(mainDir, `${uniqueKey}_audio.webm`));
@@ -78,195 +89,201 @@ app.post("/render/:key", (req, res) => {
 
     let videoDir;
 
-    if(components[1] && components[2]){
-
+    if (components[1] && components[2]) {
       videoDir = path.join(mainDir, `${uniqueKey}_wv.mp4`);
-      // await scale(dir[1], req.body.screenWidth, req.body.screenHeight); 
-      await scale(dir[2], 300, 300/req.body.webRatio );
-      await videoCam(dir[1], dir[2], videoDir, req.body.screenWidth, req.body.screenHeight);
-
-    }else if(components[1] && !components[2]){
-
+      // await scale(dir[1], req.body.screenWidth, req.body.screenHeight);
+      await scale(dir[2], 300, 300 / req.body.webRatio);
+      await videoCam(
+        dir[1],
+        dir[2],
+        videoDir,
+        req.body.screenWidth,
+        req.body.screenHeight
+      );
+    } else if (components[1] && !components[2]) {
       videoDir = path.join(mainDir, `${uniqueKey}_video.mp4`);
       await videoConversion(dir[1], videoDir);
-
-    }else if(!components[1] && components[2]){
-
+    } else if (!components[1] && components[2]) {
       videoDir = path.join(mainDir, `${uniqueKey}_webcam.mp4`);
       await videoConversion(dir[2], videoDir);
-
-    }else if(components[0] && !components[1] && !components[2]){
-
+    } else if (components[0] && !components[1] && !components[2]) {
       onlyAudio = true;
-
     }
-    
-    if(components[0]){ 
-      if(!onlyAudio){
-        await audioAssociation(videoDir, dir[0], path.join(mainDir, `${uniqueKey}_wva.mp4`));
-      }else{
-        await audioConversion(dir[0], path.join(mainDir, `${uniqueKey}_audio.mp3`))
+
+    if (components[0]) {
+      if (!onlyAudio) {
+        await audioAssociation(
+          videoDir,
+          dir[0],
+          path.join(mainDir, `${uniqueKey}_wva.mp4`)
+        );
+      } else {
+        await audioConversion(
+          dir[0],
+          path.join(mainDir, `${uniqueKey}_audio.mp3`)
+        );
       }
     }
 
-    if(!onlyAudio){fs.renameSync(videoDir, outputPath)};
-    console.log("Rendering done.")
-    res.send("Rendering done.")
+    if (!onlyAudio) {
+      fs.renameSync(videoDir, outputPath);
+    }
+    console.log("Rendering done.");
+    res.send("Rendering done.");
   }
 
   main();
-
-
 });
-
 
 app.post("/upload/:key", (req, res) => {
   async function main() {
-
-    const fileName = req.body.fileName;//III
-    const uniqueKey = req.params.key;//III
+    const fileName = req.body.fileName; //III
+    const uniqueKey = req.params.key; //III
     const videoPath = path.join(__dirname, "common/media", `${uniqueKey}.mp4`);
-    const audioPath = path.join(__dirname, "common/media", `${uniqueKey}_audio.mp3`);
+    const audioPath = path.join(
+      __dirname,
+      "common/media",
+      `${uniqueKey}_audio.mp3`
+    );
 
-    let onlyAudio = mediaType(req.body.render)//III
+    let onlyAudio = mediaType(req.body.render); //III
     let objectKey;
     let bucket;
     let params;
 
-    if(!onlyAudio){
-
+    if (!onlyAudio) {
       const videoFileContent = fs.readFileSync(videoPath);
 
-      if(videoFileContent.length == 0 ){
-        throw new Error('Video file is empty.');
-      }else{
-
+      if (videoFileContent.length == 0) {
+        throw new Error("Video file is empty.");
+      } else {
         params = {
           Bucket: "videos",
           Key: `${uniqueKey}.mp4`,
           Body: videoFileContent,
-          ContentType: 'video/mp4'
+          ContentType: "video/mp4",
         };
 
         uploadFile(params, videoPath);
 
         objectKey = `${uniqueKey}.mp4`;
-        bucket = 'videos';
-
+        bucket = "videos";
       }
-
-    }else{
-
+    } else {
       const audioFileContent = fs.readFileSync(audioPath);
-        
-      if(audioFileContent.length == 0 ){
-        throw new Error('Audio file is empty.');
-      }else{
-      
+
+      if (audioFileContent.length == 0) {
+        throw new Error("Audio file is empty.");
+      } else {
         params = {
           Bucket: "audios",
           Key: `${uniqueKey}_audio.mp3`,
           Body: audioFileContent,
-          ContentType: 'audio/mp3'
+          ContentType: "audio/mp3",
         };
 
         uploadFile(params, audioPath);
 
         objectKey = `${uniqueKey}_audio.mp3`;
-        bucket = 'audios';
-
+        bucket = "audios";
       }
     }
 
     params = {
       Bucket: bucket,
       Key: objectKey,
-      ResponseContentDisposition: `attachment; filename="${fileName}.mp4"`
+      ResponseContentDisposition: `attachment; filename="${fileName}.mp4"`,
     };
 
     try {
       const command = new GetObjectCommand(params);
-      const url =  await getSignedUrl(s3Client, command, { expiresIn: 604800 });
+      const url = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
 
       res.send(url);
-      const {error} = await createMedia(uniqueKey, fileName, bucket, req.body.time, req.body.user, url);
-      if(error){console.log(error)};
-
+      const { error } = await createMedia(
+        uniqueKey,
+        fileName,
+        bucket,
+        req.body.time,
+        req.body.user,
+        url
+      );
+      if (error) {
+        console.log(error);
+      }
     } catch (err) {
-      console.error('Error during pre-signed file url generation:', err);
+      console.error("Error during pre-signed file url generation:", err);
     }
-
   }
 
   main();
-
 });
 
-
 app.post("/speed/:key", (req, res) => {
-  async function main(){
+  async function main() {
+    const uniqueKey = req.params.key; //III
 
-    const uniqueKey = req.params.key;//III
-
-    let onlyAudio = mediaType(req.body.render);//III
-    console.log(onlyAudio)
-    if(!onlyAudio){
+    let onlyAudio = mediaType(req.body.render); //III
+    console.log(onlyAudio);
+    if (!onlyAudio) {
       const inputPath = path.join(__dirname, "common/media", `delete.mp4`);
-      const outputPath = path.join(__dirname, "common/media", `${uniqueKey}.mp4`);
+      const outputPath = path.join(
+        __dirname,
+        "common/media",
+        `${uniqueKey}.mp4`
+      );
 
       fs.renameSync(outputPath, inputPath);
 
       await changeVideoSpeed(inputPath, outputPath, req.body.playbackRate);
 
-      console.log('Video speed change.');
-      res.send('Video speed change.');
-
-    }else{
-
+      console.log("Video speed change.");
+      res.send("Video speed change.");
+    } else {
       const inputPath = path.join(__dirname, "common/media", `delete.mp3`);
-      const outputPath = path.join(__dirname, "common/media", `${uniqueKey}_audio.mp3`);
+      const outputPath = path.join(
+        __dirname,
+        "common/media",
+        `${uniqueKey}_audio.mp3`
+      );
 
       fs.renameSync(outputPath, inputPath);
 
       await changeAudioSpeed(inputPath, outputPath, req.body.playbackRate);
 
-      console.log('Audio speed change.');
-      res.send('Audio speed change.');
-
+      console.log("Audio speed change.");
+      res.send("Audio speed change.");
     }
-
   }
 
   main();
-
 });
 
 app.post("/trash/:key", (req, res) => {
-  fs.readdirSync(path.join(__dirname, "common/media")).forEach(file =>{
-      if(file.includes(req.params.key)){
-        fs.unlinkSync(path.join(__dirname, "common/media", file));
-        console.log('File delete.');
-        res.send('File delete.')
-      }
+  fs.readdirSync(path.join(__dirname, "common/media")).forEach((file) => {
+    if (file.includes(req.params.key)) {
+      fs.unlinkSync(path.join(__dirname, "common/media", file));
+      console.log("File delete.");
+      res.send("File delete.");
+    }
   });
 });
 
-
 function scale(inputPath, width, height) {
-  return new Promise((resolve, reject) => {  
+  return new Promise((resolve, reject) => {
     const output = path.join(__dirname, "common/media/delete.webm");
     ffmpeg(inputPath)
       .output(output)
-      .videoCodec('libvpx')
+      .videoCodec("libvpx")
       .size(`${width}x${height}`)
-      .on('end', () => {
-        console.log('Video resizing completed.');
+      .on("end", () => {
+        console.log("Video resizing completed.");
         fs.unlinkSync(inputPath);
         fs.renameSync(output, inputPath);
         resolve();
       })
-      .on('error', (err) => {
-        console.error('Error:', err.message);
+      .on("error", (err) => {
+        console.error("Error:", err.message);
         reject(err);
       })
       .run();
@@ -278,14 +295,14 @@ function audioConversion(inputAudioPath, outputAudioPath) {
     ffmpeg()
       .input(inputAudioPath)
       .output(outputAudioPath)
-      .audioCodec('libmp3lame')
-      .on('end', () => {
-        console.log('Audio conversion done.');
+      .audioCodec("libmp3lame")
+      .on("end", () => {
+        console.log("Audio conversion done.");
         fs.unlinkSync(inputAudioPath);
         resolve();
       })
-      .on('error', (err) => {
-        console.error('Error: ', err.message);
+      .on("error", (err) => {
+        console.error("Error: ", err.message);
         reject(err);
       })
       .run();
@@ -298,135 +315,131 @@ function changeVideoSpeed(inputPath, outputPath, speedFactor) {
       .videoFilters(`setpts=${1 / speedFactor}*PTS, fps=30`)
       .audioFilters(`atempo=${speedFactor}`)
       .output(outputPath)
-      .on('end', function() {
-        console.log('Video speed change.');
+      .on("end", function () {
+        console.log("Video speed change.");
         fs.unlinkSync(inputPath);
         resolve();
       })
-      .on('error', function(err) {
-        console.error('Error : ' + err.message);
+      .on("error", function (err) {
+        console.error("Error : " + err.message);
         reject(err);
       })
       .run();
   });
 }
-function changeAudioSpeed(input, output, speedFactor){
+function changeAudioSpeed(input, output, speedFactor) {
   return new Promise((resolve, reject) => {
     ffmpeg(input)
       .audioFilters(`atempo=${speedFactor}`)
-      .on('end', () => {
-        console.log('Audio speed change.', outputAudioPath);
+      .on("end", () => {
+        console.log("Audio speed change.", outputAudioPath);
         fs.unlinkSync(input);
         resolve();
       })
-      .on('error', (err) => {
-        console.error('Error : ', err);
+      .on("error", (err) => {
+        console.error("Error : ", err);
         reject(err);
       })
       .save(output);
   });
 }
 
-function videoCam (input1, input2, output, width, height){
+function videoCam(input1, input2, output, width, height) {
   const watermark = path.join(__dirname, "public/ressource/watermark.png");
   return new Promise((resolve, reject) => {
     ffmpeg()
-    .input(input1)
-    .input(input2)
-    .input(watermark)
-    .complexFilter([
-      `nullsrc=size=${width}x${height}:rate=35[base]`,
-      '[0:v]setpts=PTS-STARTPTS[video1]',
-      '[1:v]setpts=PTS-STARTPTS[video2]',
-      '[base][video1]overlay=shortest=1:x=0:y=(W-w)/2[base_video1]',
-      '[base_video1][video2]overlay=shortest=1:x=W-w-20:y=20[base_video2]',
-      `[base_video2][2:v]overlay=x=10:y=${height}-64`
-    ])
-    .videoCodec('libx264')
-    .outputOptions('-pix_fmt', 'yuv420p')
-    .output(output)
-    .on('end', () => {
-      console.log('Assembly finished.');
-      fs.unlinkSync(input1);
-      fs.unlinkSync(input2);
-      resolve();
-    })
-    .on('error', (err) => {
-      console.error('Error : ' + err.message);
-      reject(err);
-    })
-    .run();
+      .input(input1)
+      .input(input2)
+      .input(watermark)
+      .complexFilter([
+        `nullsrc=size=${width}x${height}:rate=35[base]`,
+        "[0:v]setpts=PTS-STARTPTS[video1]",
+        "[1:v]setpts=PTS-STARTPTS[video2]",
+        "[base][video1]overlay=shortest=1:x=0:y=(W-w)/2[base_video1]",
+        "[base_video1][video2]overlay=shortest=1:x=W-w-20:y=20[base_video2]",
+        `[base_video2][2:v]overlay=x=10:y=${height}-64`,
+      ])
+      .videoCodec("libx264")
+      .outputOptions("-pix_fmt", "yuv420p")
+      .output(output)
+      .on("end", () => {
+        console.log("Assembly finished.");
+        fs.unlinkSync(input1);
+        fs.unlinkSync(input2);
+        resolve();
+      })
+      .on("error", (err) => {
+        console.error("Error : " + err.message);
+        reject(err);
+      })
+      .run();
   });
 }
 
-function audioAssociation(input, audio, output){
+function audioAssociation(input, audio, output) {
   return new Promise((resolve, reject) => {
     ffmpeg()
-    .input(input)
-    .input(audio)
-    .outputOptions('-c:v copy') 
-    .outputOptions('-c:a aac')  
-    .outputOptions('-strict experimental') 
-    .output(output)
-    .on('end', () => {
-      console.log('Audio associated.');
-      fs.unlinkSync(input);
-      fs.unlinkSync(audio);
-      fs.renameSync(output,input);
-      resolve();
-    })
-    .on('error', (err) => {
-      console.error('Error: ' + err.message);
-      reject(err);
-    })
-    .run();
+      .input(input)
+      .input(audio)
+      .outputOptions("-c:v copy")
+      .outputOptions("-c:a aac")
+      .outputOptions("-strict experimental")
+      .output(output)
+      .on("end", () => {
+        console.log("Audio associated.");
+        fs.unlinkSync(input);
+        fs.unlinkSync(audio);
+        fs.renameSync(output, input);
+        resolve();
+      })
+      .on("error", (err) => {
+        console.error("Error: " + err.message);
+        reject(err);
+      })
+      .run();
   });
 }
 
-
-function videoConversion(input, output){
+function videoConversion(input, output) {
   return new Promise((resolve, reject) => {
     ffmpeg()
-    .input(input)
-    .outputOptions('-c:v libx264')
-    .outputOptions('-c:a aac')
-    .outputOptions('-strict experimental')
-    .output(output)
-    .on('end', () => {
-      console.log('Video conversion done.');
-      fs.unlinkSync(input);
-      resolve();
-    })
-    .on('error', (err) => {
-      console.error('Error: ', err.message);
-      reject(err);
-    })
-    .run();
+      .input(input)
+      .outputOptions("-c:v libx264")
+      .outputOptions("-c:a aac")
+      .outputOptions("-strict experimental")
+      .output(output)
+      .on("end", () => {
+        console.log("Video conversion done.");
+        fs.unlinkSync(input);
+        resolve();
+      })
+      .on("error", (err) => {
+        console.error("Error: ", err.message);
+        reject(err);
+      })
+      .run();
   });
 }
 
-
-async function uploadFile(params,filePath) {
-
+async function uploadFile(params, filePath) {
   try {
     const command = new PutObjectCommand(params);
     const response = await s3Client.send(command);
-    console.log('File uploaded: ', response);
+    console.log("File uploaded: ", response);
     fs.unlinkSync(filePath);
   } catch (err) {
-    console.error('Error: ', err);
+    console.error("Error: ", err);
   }
-
 }
 
-function mediaType(render){
-  if(render[1]||render[2]){
+function mediaType(render) {
+  if (render[1] || render[2]) {
     return false;
-  }else{
-    return true; 
+  } else {
+    return true;
   }
 }
 
-app.listen(port, () => {
-  console.log(__dirname);
+app.listen(port, "0.0.0.0", function () {
+  console.log(`Example app listening on port ${port}!`);
 });
