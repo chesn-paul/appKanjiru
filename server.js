@@ -11,12 +11,17 @@ import {
   S3Client,
   GetObjectCommand,
   PutObjectCommand,
-  ListObjectsV2Command,
-  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createMedia, getType } from "./model/supabase.js";
-import { ContinuationSeparator } from "docx";
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  HeadingLevel,
+} from "docx";
 import { fileURLToPath } from "url";
 
 // Pour gérer __dirname dans les modules ES6 (sinon erreur lors du lancement de l'app dans la VM)
@@ -162,6 +167,7 @@ app.post("/upload/:key", (req, res) => {
           Key: `${uniqueKey}.mp4`,
           Body: videoFileContent,
           ContentType: "video/mp4",
+          ACL: "public-read",
         };
 
         uploadFile(params, videoPath);
@@ -180,6 +186,7 @@ app.post("/upload/:key", (req, res) => {
           Key: `${uniqueKey}_audio.mp3`,
           Body: audioFileContent,
           ContentType: "audio/mp3",
+          ACL: "public-read",
         };
 
         uploadFile(params, audioPath);
@@ -189,18 +196,25 @@ app.post("/upload/:key", (req, res) => {
       }
     }
 
-    params = {
-      Bucket: bucket,
-      Key: objectKey,
-      ResponseContentDisposition: `attachment; filename="${fileName}.mp4"`,
-    };
+    if (!onlyAudio) {
+      params = {
+        Bucket: bucket,
+        Key: objectKey,
+        ResponseContentDisposition: `attachment; filename="${fileName}.mp4"`,
+      };
+    } else {
+      params = {
+        Bucket: bucket,
+        Key: objectKey,
+        ResponseContentDisposition: `attachment; filename="${fileName}.mp3"`,
+      };
+    }
 
     try {
       const command = new GetObjectCommand(params);
       const url = await getSignedUrl(s3Client, command, { expiresIn: 604800 });
 
-      res.send(url);
-      const { error } = await createMedia(
+      const error = await createMedia(
         uniqueKey,
         fileName,
         bucket,
@@ -208,8 +222,12 @@ app.post("/upload/:key", (req, res) => {
         req.body.user,
         url
       );
+
       if (error) {
         console.log(error);
+        res.send("error");
+      } else {
+        res.send(url);
       }
     } catch (err) {
       console.error("Error during pre-signed file url generation:", err);
@@ -259,6 +277,110 @@ app.post("/speed/:key", (req, res) => {
   main();
 });
 
+app.post("/transcribe/:key", async (req, res) => {
+  const uniqueKey = req.params.key;
+  const inputPath = path.join(__dirname, "common/media", `${uniqueKey}.mp4`);
+  const outputPath = path.join(__dirname, "common/media", `${uniqueKey}.mp3`);
+
+  try {
+    await convertToMp3(inputPath, outputPath);
+
+    const transcription = await query(outputPath);
+
+    let formattedText = transcription.text.trim();
+    if (!formattedText.endsWith(".")) {
+      formattedText += ".";
+    }
+    formattedText =
+      formattedText.charAt(0).toUpperCase() + formattedText.slice(1);
+
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [
+            new Paragraph({
+              text: "Retranscription",
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER,
+              spacing: {
+                after: 200,
+              },
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: formattedText || "Aucune retranscription disponible.",
+                  font: "Arial",
+                  size: 24,
+                }),
+              ],
+              alignment: AlignmentType.JUSTIFIED,
+              spacing: {
+                after: 100,
+              },
+            }),
+          ],
+        },
+      ],
+    });
+
+    const buffer = await Packer.toBuffer(doc);
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=Transcription-${uniqueKey}.docx`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+
+    res.json({ formattedText, fileBuffer: buffer.toString("base64") });
+
+    deleteConvertedAudio(outputPath);
+  } catch (error) {
+    console.error("Erreur dans le processus de transcription :", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/subtitle/:key", async (req, res) => {
+  const uniqueKey = req.params.key;
+  const inputPath = path.join(__dirname, "common/media", `${uniqueKey}.mp4`);
+  const outputPath = path.join(
+    __dirname,
+    "common/media",
+    `${uniqueKey}_subtitled.mp4`
+  );
+
+  const srtPath = path.join(__dirname, "common/transcript", `${uniqueKey}.srt`);
+
+  try {
+    const audioPath = path.join(__dirname, "common/media", `${uniqueKey}.mp3`);
+    await convertToMp3(inputPath, audioPath);
+
+    const transcription = await query(audioPath);
+
+    console.log(JSON.stringify(transcription));
+
+    await generateSRT(transcription, uniqueKey);
+
+    await addSubtitlesToVideo(inputPath, srtPath, outputPath);
+
+    fs.renameSync(outputPath, inputPath);
+
+    deleteConvertedAudio(audioPath);
+
+    deleteSRTFile(uniqueKey);
+
+    res.status(200).json({ message: "Sous-titres ajoutés avec succès" });
+  } catch (error) {
+    console.error("Erreur dans le processus de sous-titrage :", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/trash/:key", (req, res) => {
   fs.readdirSync(path.join(__dirname, "common/media")).forEach((file) => {
     if (file.includes(req.params.key)) {
@@ -267,6 +389,76 @@ app.post("/trash/:key", (req, res) => {
       res.send("File delete.");
     }
   });
+});
+
+app.get("/sharelink/:key", (req, res) => {
+  async function main() {
+    const data = await getType(req.params.key);
+    const type = data["type"];
+    const title = data["title"];
+    let src;
+    if (data["type"] == "audios") {
+      src = `${endpoint}/${type}/${req.params.key}_audio.mp3`;
+      res.send(`
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="stylesheet" href="css/style.css">
+                <title>${title}</title>
+                <style>
+                .videos{
+                    background-color: black;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100vw;
+                    height: 100vh;
+                    padding: 0;
+                    margin : 0;
+                }
+                </style>
+            </head>
+            <body class="videos">
+                <audio controls autoplay src="${src}"></audio>
+            </body>
+          </html>
+      `);
+    } else {
+      src = `${endpoint}/${type}/${req.params.key}.mp4`;
+      res.send(`
+          <!DOCTYPE html>
+          <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="stylesheet" href="css/style.css">
+                <title>${title}</title>
+                <style>
+                .videos{
+                    background-color: black;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100vw;
+                    height: 100vh;
+                    padding: 0;
+                    margin : 0;
+                }
+                .videos video{
+                    height: 80vh;
+                }
+                </style>
+            </head>
+            <body class="videos">
+                <video controls autoplay src="${src}"></video>
+            </body>
+          </html>
+      `);
+    }
+  }
+  main();
 });
 
 function scale(inputPath, width, height) {
@@ -332,7 +524,7 @@ function changeAudioSpeed(input, output, speedFactor) {
     ffmpeg(input)
       .audioFilters(`atempo=${speedFactor}`)
       .on("end", () => {
-        console.log("Audio speed change.", outputAudioPath);
+        console.log("Audio speed change.");
         fs.unlinkSync(input);
         resolve();
       })
@@ -421,6 +613,23 @@ function videoConversion(input, output) {
   });
 }
 
+async function query(filename) {
+  const data = fs.readFileSync(filename);
+  const response = await fetch(
+    "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
+    {
+      headers: {
+        Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+      body: data,
+    }
+  );
+  const result = await response.json();
+  return result;
+}
+
 async function uploadFile(params, filePath) {
   try {
     const command = new PutObjectCommand(params);
@@ -440,6 +649,132 @@ function mediaType(render) {
   }
 }
 
-app.listen(port, "0.0.0.0", function () {
-  console.log(`Example app listening on port ${port}!`);
+function convertToMp3(inputPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .noVideo()
+      .audioCodec("libmp3lame")
+      .audioBitrate(192)
+      .on("start", (commandLine) => {
+        console.log("Spawned FFmpeg with command: " + commandLine);
+      })
+      .on("progress", (progress) => {
+        process.stdout.write(
+          `Processing: ${
+            progress.percent ? progress.percent.toFixed(2) : "0"
+          }% done\r`
+        );
+      })
+      .on("error", (err, stdout, stderr) => {
+        console.error("Une erreur est survenue : " + err.message);
+        console.error("FFmpeg stderr : " + stderr);
+        reject(err);
+      })
+      .on("end", () => {
+        console.log("\nConversion terminée avec succès !");
+        resolve();
+      })
+      .save(outputPath);
+  });
+}
+
+function deleteConvertedAudio(filePath) {
+  try {
+    fs.unlinkSync(filePath);
+    console.log(`Le fichier MP3 à ${filePath} a été supprimé avec succès.`);
+  } catch (err) {
+    console.error(
+      `Erreur lors de la suppression du fichier MP3 à ${filePath} :`,
+      err
+    );
+  }
+}
+
+function addSubtitlesToVideo(videoPath, subtitlePath, outputPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .outputOptions(
+        "-vf",
+        `subtitles=${subtitlePath}:force_style='FontName=DejaVu Sans,FontSize=18,PrimaryColour=&HFFFFFF&'`
+      )
+      .on("start", (commandLine) => {
+        console.log(`FFmpeg process started: ${commandLine}`);
+      })
+      .on("progress", (progress) => {
+        console.log(`Processing: ${progress.percent}% done`);
+      })
+      .on("error", (err) => {
+        console.error(`Error occurred: ${err.message}`);
+        reject(err); // Rejet de la promesse en cas d'erreur
+      })
+      .on("end", () => {
+        console.log("Subtitles have been added to the video.");
+        resolve(); // Résolution de la promesse une fois la tâche terminée
+      })
+      .save(outputPath);
+  });
+}
+
+async function generateSRT(transcription, uniqueKey) {
+  if (!transcription || !transcription.text) {
+    throw new Error('Transcription invalide : propriété "text" manquante.');
+  }
+
+  const words = transcription.text.split(" ");
+  const interval = 4.2; // Intervalle de temps en secondes
+  let srtContent = "";
+  let startTime = 0;
+
+  function formatTime(seconds) {
+    const hours = Math.floor(seconds / 3600)
+      .toString()
+      .padStart(2, "0");
+    const minutes = Math.floor((seconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const secs = Math.floor(seconds % 60)
+      .toString()
+      .padStart(2, "0");
+    const millis = Math.floor((seconds % 1) * 1000)
+      .toString()
+      .padStart(3, "0");
+    return `${hours}:${minutes}:${secs},${millis}`;
+  }
+
+  for (let i = 0; i < words.length; i += 10) {
+    const endTime = startTime + interval;
+    const line = words.slice(i, i + 10).join(" ");
+    srtContent += `${Math.floor(i / 10) + 1}\n`;
+    srtContent += `${formatTime(startTime)} --> ${formatTime(endTime)}\n`;
+    srtContent += `${line.trim()}\n\n`;
+    startTime = endTime;
+  }
+
+  const srtDir = path.join(__dirname, "common/transcript");
+  if (!fs.existsSync(srtDir)) {
+    fs.mkdirSync(srtDir, { recursive: true });
+  }
+
+  const srtFile = path.join(srtDir, `${uniqueKey}.srt`);
+  fs.writeFileSync(srtFile, srtContent);
+  console.log(`Fichier SRT enregistré à : ${srtFile}`);
+}
+
+function deleteSRTFile(uniqueKey) {
+  const srtFilePath = path.join(
+    __dirname,
+    "common/transcript",
+    `${uniqueKey}.srt`
+  );
+
+  if (fs.existsSync(srtFilePath)) {
+    fs.unlinkSync(srtFilePath);
+    console.log(`Fichier SRT supprimé : ${srtFilePath}`);
+  } else {
+    console.log("Le fichier SRT n'existe pas.");
+  }
+}
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`VM en ligne sur https://app.kanjiru.co`);
 });

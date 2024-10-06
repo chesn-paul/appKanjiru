@@ -1,5 +1,5 @@
 body {
-    font-family: Arial, sans-serif;
+    font-family: 'Calibri', sans-serif;
     color: #00509d;
     background-color: #ffffff;
     display: flex;
@@ -7,7 +7,7 @@ body {
     margin: 0;
     padding: 20px;
     padding-left: 40px;
-    width: min-content;
+    width: max-content;
 }
 
 h1 {
@@ -150,33 +150,34 @@ label {
     font-weight: bold;
 }
 
-.info{
+.info {
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: fit-content;
 }
 
-#fileNameInput{
+#fileNameInput {
     font-size: 25pt;
     border: none;
     margin: 20px 0;
 }
 
-#copy{
+#copy {
     border: none;
     background-color: #00509d;
     color: white;
     padding: 5px 15px;
     margin: 0;
+    border-radius: 5px;
 }
 
-#copy:hover{
+#copy:hover {
     background-color: white;
     color: #00509d;
 }
 
-#copyLink{
+#copyLink {
     display: flex;
     align-items: center;
     border: 1px #00509d solid;
@@ -185,7 +186,7 @@ label {
     border-radius: 5px;
 }
 
-#link{
+#link {
     border: none;
     padding: 0;
     background-color: white;
@@ -193,11 +194,11 @@ label {
     width: 300px;
 }
 
-input:focus{
+input:focus {
     outline: none;
 }
 
-#flag{
+#flag {
     position: absolute;
     width: fit-content;
     top: 0;
@@ -208,7 +209,7 @@ input:focus{
     border-radius: 8px 0;
 }
 
-.device-button{
+.device-button {
     width: 33px;
     height: 33px;
     border-radius: 10px;
@@ -218,7 +219,7 @@ input:focus{
     cursor: pointer;
 }
 
-.container{
+.container {
     background-color: #87bee8;
     border-radius: 10px;
     display: flex;
@@ -227,19 +228,19 @@ input:focus{
     margin: 0 5px;
 }
 
-#toggleVideo{
+#toggleVideo {
     background-image: url('../ressource/bx-video-recording-cross.png');
 }
 
-#toggleAudio{
+#toggleAudio {
     background-image: url('../ressource/bx-microphone-cross.png');
 }
 
-#toggleScreen{
+#toggleScreen {
     background-image: url('../ressource/bx-export-cross.png');
 }
 
-.clrBtn{
+.clrBtn {
     width: 35px;
     height: 35px;
     background-color: transparent;
@@ -248,15 +249,36 @@ input:focus{
     cursor: pointer;
 }
 
-#stopRecording{
+.transcriptionBox {
+    width: 100%;
+    height: 100%;
+    padding: 10px;
+    margin: 5px 0px;
+    border: none;
+    border-radius: 8px;
+    overflow-y: auto;
+    color: #00509d;
+    background-color: #87bee866;
+    max-width: 400px;
+}
+
+.transcription {
+    display: flex;
+    flex-direction: column;
+    margin: 30px 0;
+    align-items: center;
+    padding: 10px 60px 10px 60px;
+}
+
+#stopRecording {
     background-image: url('../ressource/bx-stop.png');
 }
 
-#pauseResumeRecording{
+#pauseResumeRecording {
     background-image: url('../ressource/bx-pause.png');
 }
 
-#startRecording{
+#startRecording {
     position: absolute;
     display: flex;
     top: 0;
@@ -273,7 +295,7 @@ input:focus{
     border-radius: 8px;
 }
 
-#menu{
+#menu {
     position: absolute;
     bottom: 15px;
     display: flex;
@@ -282,7 +304,7 @@ input:focus{
     width: 100%;
 }
 
-#modal{
+#modal {
     position: absolute;
     top: 0;
     left: 0;
@@ -294,10 +316,27 @@ input:focus{
     backdrop-filter: grayscale(1);
 }
 
-#modal-content{
+#modal-content {
     background-color: white;
     padding: 20px;
     border-radius: 8px;
     text-align: center;
     width: 350px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#recordedVideo {
+    position: relative;
+    justify-content: center;
+    align-items: center;
+    min-height: 450px;
+    width: 800px;
+    background-color: #87bee866;
+    border-radius: 8px;
+}
+
+#videoRecorded {
+    max-height: 450px;
 }
