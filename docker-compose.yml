@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./common/media/:/app/common/media/
+    tmpfs:
+      - /mnt/ramdisk:uid=1000,gid=1000,mode=1777,size=4G
     networks:
       - app-network
 

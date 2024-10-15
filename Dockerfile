@@ -6,6 +6,8 @@ RUN apk --no-cache add font-dejavu
 
 RUN mkdir -p /home/node/app/node_modules && chown -R node:node /home/node/app
 
+RUN mkdir -p /mnt/ramdisk && chown -R node:node /mnt/ramdisk
+
 WORKDIR /home/node/app
 
 COPY --chown=node:node package*.json ./

@@ -395,7 +395,7 @@ app.get("/sharelink/:key", (req, res) => {
   async function main() {
     const data = await getType(req.params.key);
     const type = data["type"];
-    const title = data["title"];
+    const title = data["name"];
     let src;
     if (data["type"] == "audios") {
       src = `${endpoint}/${type}/${req.params.key}_audio.mp3`;
@@ -463,16 +463,39 @@ app.get("/sharelink/:key", (req, res) => {
 
 function scale(inputPath, width, height) {
   return new Promise((resolve, reject) => {
-    const output = path.join(__dirname, "common/media/delete.webm");
+    const output = "/mnt/ramdisk/delete.webm"; // Utilisation de tmpfs pour le fichier temporaire
+
     ffmpeg(inputPath)
       .output(output)
       .videoCodec("libvpx")
       .size(`${width}x${height}`)
+      .outputOptions([
+        "-preset ultrafast",
+        "-crf 30",
+        "-threads 4",
+        "-vf",
+        `scale=${width}:${height}:flags=fast_bilinear`,
+      ])
       .on("end", () => {
         console.log("Video resizing completed.");
-        fs.unlinkSync(inputPath);
-        fs.renameSync(output, inputPath);
-        resolve();
+
+        // Copie du fichier du ramdisk vers l'emplacement final
+        fs.copyFile(output, inputPath, (copyErr) => {
+          if (copyErr) {
+            console.error("Copy failed:", copyErr.message);
+            reject(copyErr);
+          } else {
+            // Suppression du fichier source dans le ramdisk
+            fs.unlink(output, (unlinkErr) => {
+              if (unlinkErr) {
+                console.error("Unlink failed:", unlinkErr.message);
+                reject(unlinkErr);
+              } else {
+                resolve();
+              }
+            });
+          }
+        });
       })
       .on("error", (err) => {
         console.error("Error:", err.message);
@@ -538,6 +561,8 @@ function changeAudioSpeed(input, output, speedFactor) {
 
 function videoCam(input1, input2, output, width, height) {
   const watermark = path.join(__dirname, "public/ressource/watermark.png");
+  const ramdiskOutput = "/mnt/ramdisk/output.mp4"; // Utilisation de tmpfs pour le fichier temporaire
+
   return new Promise((resolve, reject) => {
     ffmpeg()
       .input(input1)
@@ -552,13 +577,41 @@ function videoCam(input1, input2, output, width, height) {
         `[base_video2][2:v]overlay=x=10:y=${height}-64`,
       ])
       .videoCodec("libx264")
-      .outputOptions("-pix_fmt", "yuv420p")
-      .output(output)
+      .outputOptions([
+        "-preset veryfast",
+        "-threads 4",
+        "-crf 30",
+        "-pix_fmt yuv420p",
+      ])
+      .output(ramdiskOutput)
       .on("end", () => {
         console.log("Assembly finished.");
-        fs.unlinkSync(input1);
-        fs.unlinkSync(input2);
-        resolve();
+
+        // Copie du fichier du ramdisk vers l'emplacement final
+        fs.copyFile(ramdiskOutput, output, (copyErr) => {
+          if (copyErr) {
+            console.error("Copy failed:", copyErr.message);
+            reject(copyErr);
+          } else {
+            // Suppression du fichier source dans le ramdisk
+            fs.unlink(ramdiskOutput, (unlinkErr) => {
+              if (unlinkErr) {
+                console.error("Unlink failed:", unlinkErr.message);
+                reject(unlinkErr);
+              } else {
+                resolve();
+              }
+            });
+          }
+        });
+
+        // Suppression des fichiers d'entrée pour libérer de l'espace
+        fs.unlink(input1, (err) => {
+          if (err) console.error("Error deleting input1:", err.message);
+        });
+        fs.unlink(input2, (err) => {
+          if (err) console.error("Error deleting input2:", err.message);
+        });
       })
       .on("error", (err) => {
         console.error("Error : " + err.message);
