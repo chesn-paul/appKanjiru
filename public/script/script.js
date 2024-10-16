@@ -202,8 +202,8 @@ document
         webcam.setStream(
           await navigator.mediaDevices.getUserMedia({
             video: {
-              frameRate: 30,
-              width: { ideal: 300 },
+              frameRate: 15,
+              width: { ideal: 150, max: 150 },
             },
           })
         );
@@ -275,9 +275,9 @@ document
           await navigator.mediaDevices.getDisplayMedia({
             video: {
               cursor: "always",
-              frameRate: 30,
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
+              frameRate: 15,
+              width: { ideal: 1280, max: 1280 },
+              height: { ideal: 720, max: 720 },
             },
           })
         );
@@ -469,18 +469,26 @@ document
       "link"
     ).value = `https://app.kanjiru.co/sharelink/${uniqueKey}`;
     document.getElementById("copyLink").style.display = "flex";
+    document.getElementById("copy").addEventListener("click", function () {
+      this.textContent = "Lien copié !";
+    });
   });
 
 // Sauvegarde les fichier dans le Space DO
 document.getElementById("saveFiles").addEventListener("click", async () => {
-  document.getElementById("modal").style.display = "flex";
-  document.getElementById("modal-text").textContent =
-    "Vous ne pourrez plus modifier la vidéo aprés l'avoir sauvegardée !";
-  document.getElementById("saveFiles").style.display = "none";
-});
-
-document.getElementById("validModal").addEventListener("click", async () => {
-  saveRecordedVideo(uniqueKey);
+  if (paid === true) {
+    document.getElementById("modal").style.display = "flex";
+    document.getElementById("modal-text").textContent =
+      "Vous ne pourrez plus modifier la vidéo aprés l'avoir sauvegardée !";
+    document.getElementById("saveFiles").style.display = "none";
+    document
+      .getElementById("validModal")
+      .addEventListener("click", async () => {
+        saveRecordedVideo(uniqueKey);
+      });
+  } else {
+    saveRecordedVideo(uniqueKey);
+  }
 });
 
 document.getElementById("limit").addEventListener("click", async () => {
