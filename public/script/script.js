@@ -469,10 +469,11 @@ document
       "link"
     ).value = `https://app.kanjiru.co/sharelink/${uniqueKey}`;
     document.getElementById("copyLink").style.display = "flex";
-    document.getElementById("copy").addEventListener("click", function () {
-      this.textContent = "Lien copié !";
-    });
   });
+
+document.getElementById("copy").addEventListener("click", function () {
+  this.textContent = "Lien copié !";
+});
 
 // Sauvegarde les fichier dans le Space DO
 document.getElementById("saveFiles").addEventListener("click", async () => {
