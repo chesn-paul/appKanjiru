@@ -202,8 +202,8 @@ document
         webcam.setStream(
           await navigator.mediaDevices.getUserMedia({
             video: {
-              frameRate: 15,
-              width: { ideal: 150, max: 150 },
+              frameRate: 30,
+              width: { ideal: 300, max: 300 },
             },
           })
         );
@@ -275,9 +275,9 @@ document
           await navigator.mediaDevices.getDisplayMedia({
             video: {
               cursor: "always",
-              frameRate: 15,
-              width: { ideal: 1280, max: 1280 },
-              height: { ideal: 720, max: 720 },
+              frameRate: 30,
+              width: { ideal: 1920, max: 1920 },
+              height: { ideal: 1080, max: 1080 },
             },
           })
         );
@@ -460,48 +460,50 @@ if (browser === "Safari" || browser === "Firefox") {
   }, 7000);
 }
 
-// Génère un lien de partage pour la vidéo enregistrée
-document
-  .getElementById("generateShareLink")
-  .addEventListener("click", async () => {
-    document.getElementById("generateShareLink").style.display = "none";
-    document.getElementById(
-      "link"
-    ).value = `https://app.kanjiru.co/sharelink/${uniqueKey}`;
-    document.getElementById("copyLink").style.display = "flex";
-  });
-
-document.getElementById("copy").addEventListener("click", function () {
-  this.textContent = "Lien copié !";
-});
-
-// Sauvegarde les fichier dans le Space DO
+// Sauvegarde les fichier dans le Space DO et génère un lien
 document.getElementById("saveFiles").addEventListener("click", async () => {
   if (paid === true) {
     document.getElementById("modal").style.display = "flex";
     document.getElementById("modal-text").textContent =
-      "Vous ne pourrez plus modifier la vidéo aprés l'avoir sauvegardée !";
+      "Vous ne pourrez plus modifier la vidéo après avoir généré un lien";
     document.getElementById("saveFiles").style.display = "none";
-    document
-      .getElementById("validModal")
-      .addEventListener("click", async () => {
-        saveRecordedVideo(uniqueKey);
-      });
   } else {
-    saveRecordedVideo(uniqueKey);
+    await saveRecordedVideo(uniqueKey);
+    document.getElementById(
+      "link"
+    ).value = `https://app.kanjiru.co/sharelink/${uniqueKey}`;
+    document.getElementById("copyLink").style.display = "flex";
   }
+});
+
+// Gestion du bouton de validation de la modale pour créer le lien
+document.getElementById("validModal").addEventListener("click", async () => {
+  await saveRecordedVideo(uniqueKey);
+  document.getElementById(
+    "link"
+  ).value = `https://app.kanjiru.co/sharelink/${uniqueKey}`;
+  document.getElementById("copyLink").style.display = "flex";
+  document.getElementById("modal").style.display = "none";
+});
+
+// Gestion du bouton "retour" pour annuler la création du lien et fermer la modale
+document.getElementById("retour").addEventListener("click", async () => {
+  document.getElementById("modal").style.display = "none";
+  document.getElementById("saveFiles").style.display = "inline";
+});
+
+document.getElementById("copy").addEventListener("click", function () {
+  this.textContent = "Lien copié !";
 });
 
 document.getElementById("limit").addEventListener("click", async () => {
   document.getElementById("modal").style.display = "none";
 });
 
-document.getElementById("return").addEventListener("click", async () => {
-  document.getElementById("modal").style.display = "none";
-  document.getElementById("saveFiles").style.display = "flex";
-});
-
 async function saveTracks(item) {
+  document.getElementById("loader").style.display = "block";
+  document.getElementById("message").textContent = "Traitement du média...";
+
   console.log(item.name);
   const blob = new Blob(item.chunk, { type: item.type });
   const file = new File([blob], `${item.name}.webm`, { type: item.type });
@@ -515,6 +517,10 @@ async function saveTracks(item) {
     if (!response.ok) {
       throw new Error(`Failed to save ${item.name}`);
     }
+
+    document.getElementById("loader").style.display = "none";
+    document.getElementById("message").textContent = " ";
+
     const rep = await response.text();
     console.log(rep);
   } catch (error) {
@@ -537,7 +543,7 @@ async function renderVideo(key) {
       body: JSON.stringify({ render, screenWidth, screenHeight, webRatio }),
     });
     if (!response.ok) {
-      throw new Error(`Rendering failed.`);
+      throw new Error(`Oups erreur de montage ! Veuillez réessayer !`);
     }
     document.getElementById("loader").style.display = "none";
     document.getElementById("message").textContent = " ";
@@ -601,14 +607,10 @@ async function saveRecordedVideo(key) {
       document.getElementById("downloadVideo").style.display = "inline";
     }
 
-    if (user != "9f721f62-8c4b-436e-b0c3-aa452f5c08b9") {
-      document.getElementById("generateShareLink").style.display = "inline";
-    } else {
-      document.getElementById(
-        "link"
-      ).value = `https://app.kanjiru.co/sharelink/${key}`;
-      document.getElementById("copyLink").style.display = "flex";
-    }
+    document.getElementById(
+      "link"
+    ).value = `https://app.kanjiru.co/sharelink/${key}`;
+    document.getElementById("copyLink").style.display = "flex";
 
     document.getElementById("loader").style.display = "none";
     document.getElementById("saveFiles").style.display = "none";
@@ -646,7 +648,7 @@ async function applyPlaybackRate(key) {
     document.getElementById("playbackRate").disabled = false;
     document.getElementById("loader").style.display = "none";
     document.getElementById("message").textContent =
-      "Média accéléré. Pour voir les modifications, sauvegardez le puis téléchargez le ou générez un lien.";
+      "Média accéléré. Pour voir les modifications générez un lien.";
     document.getElementById("speedControl").style.display = "none";
     document.getElementById("speedVideo").style.display = "none";
   } catch (error) {
@@ -729,7 +731,7 @@ async function subtitleVideo(key) {
 
     document.getElementById("loader").style.display = "none";
     document.getElementById("message").textContent =
-      "Sous-titrage du média terminé. Pour voir les modifications, sauvegardez le puis téléchargez le ou générez un lien.";
+      "Sous-titrage du média terminé. Pour voir les modifications générez un lien.";
     document.getElementById("subtitles").style.display = "none";
   } catch (error) {
     document.getElementById("message").textContent = error;
@@ -810,6 +812,8 @@ async function stopRecording() {
 
   renderVideo(uniqueKey);
 
+  stopWebcamStream();
+
   document.getElementById("recordedVideo").style.display = "flex";
   document.getElementById("timer").style.display = "none";
   if (audio.rec && !webcam.rec && !screen.rec) {
@@ -838,7 +842,7 @@ function startTimer() {
       document.getElementById("limit").style.display = "block";
       document.getElementById("modal").style.display = "flex";
       document.getElementById("modal-text").textContent =
-        "Vous avez atteint la limite de taille pour un média avec un compte gratuit.";
+        "Vous avez atteint la limite de taille pour les comptes gratuits ! Contactez-nous ou passez premium !";
     }
   }, 1000);
 }
@@ -892,4 +896,14 @@ function detectBrowser() {
   }
 
   return browserName;
+}
+
+function stopWebcamStream() {
+  if (webcamVideo && webcamVideo.srcObject) {
+    const tracks = webcamVideo.srcObject.getTracks();
+    tracks.forEach((track) => track.stop());
+
+    webcamVideo.pause();
+    webcamVideo.srcObject = null;
+  }
 }

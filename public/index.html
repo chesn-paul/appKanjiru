@@ -15,7 +15,7 @@
 </head>
 
 <body>
-    <input type="text" id="fileNameInput" placeholder="Titre de votre média">
+    <input type="text" id="fileNameInput" placeholder="Donner un titre à son enregistrement...">
     <div style="position: relative; width: min-content;">
         <canvas id="canvas" width="800" height="450"></canvas>
         <img id="audioGif" width="800px" height="450px" src="ressource/audio.png"
@@ -54,7 +54,7 @@
                     <div>
                         <button id="validModal" class="btn">Ok</button>
                         <button id="limit" class="btn" style="display: none;">Ok</button>
-                        <button id="return" class="btn">Retour</button>
+                        <button id="retour" class="btn">Retour</button>
                     </div>
                 </div>
             </div>
@@ -86,9 +86,7 @@
         </div>
         <button class="btn" id="speedVideo" style="display: none;"
             onclick="mixpanel.track('vitesse(vidéo)')">Accélérer</button>
-        <button class="btn" id="saveFiles" style="display: none;"
-            onclick="mixpanel.track('sauvegarder')">Sauvegarder</button>
-        <button class="btn" id="generateShareLink" style="display: none;" onclick="mixpanel.track('lien')">Générer un
+        <button class="btn" id="saveFiles" style="display: none;" onclick="mixpanel.track('sauvegarder')">Générer un
             lien</button>
         <button class="btn" id="downloadVideo" style="display: none;"
             onclick="mixpanel.track('téléchargement')">Télécharger</button>
