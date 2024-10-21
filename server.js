@@ -6,7 +6,6 @@ import path from "path";
 import ffmpegPath from "ffmpeg-static";
 import ffmpeg from "fluent-ffmpeg";
 import fs from "fs";
-import bodyParser from "body-parser";
 import {
   S3Client,
   GetObjectCommand,
@@ -63,13 +62,15 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 4000 * 1024 * 1024 },
 });
 
 // Configuration des middlewares
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.static(path.join(__dirname, "common")));
-app.use(bodyParser.json());
+
+app.use(express.json({ limit: "4gb" }));
+app.use(express.urlencoded({ limit: "4gb", extended: true }));
 
 // Routes
 app.post("/tracks", upload.single("file"), (req, res) => {
@@ -418,10 +419,38 @@ app.get("/sharelink/:key", (req, res) => {
                     padding: 0;
                     margin : 0;
                 }
+                .videos video{
+                    height: 80vh;
+                }
+                a{
+                    display: flex;
+                    align-items: center;
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                  }
+                a > div {
+                    color: white;
+                    margin-left: 10px;
+                    font-size: 20px;
+                    font-family: 'Calibri';
+                  }
+
+                a > div:hover{
+                    font-weight: bold;
+                  }
+
+                  a > div:active{
+                      color: white;
+                  }
                 </style>
             </head>
             <body class="videos">
-                <audio controls autoplay src="${src}"></audio>
+              <a href="https://www.kanjiru.co">
+                <img width="40px" src="https://jkevlpqsaagrpzdtaadc.supabase.co/storage/v1/object/public/Files/logo_kan.png?t=2024-10-18T09%3A46%3A36.178Z">
+                <div>Kanjiru</div>
+              </a>
+                <video controls autoplay src="${src}"></video>
             </body>
           </html>
       `);
@@ -449,9 +478,34 @@ app.get("/sharelink/:key", (req, res) => {
                 .videos video{
                     height: 80vh;
                 }
+                a{
+                    display: flex;
+                    align-items: center;
+                    position: fixed;
+                    top: 20px;
+                    left: 20px;
+                  }
+                a > div {
+                    color: white;
+                    margin-left: 10px;
+                    font-size: 20px;
+                    font-family: 'Calibri';
+                  }
+
+                a > div:hover{
+                    font-weight: bold;
+                  }
+
+                  a > div:active{
+                      color: white;
+                  }
                 </style>
             </head>
             <body class="videos">
+              <a href="https://www.kanjiru.co">
+                <img width="40px" src="https://jkevlpqsaagrpzdtaadc.supabase.co/storage/v1/object/public/Files/logo_kan.png?t=2024-10-18T09%3A46%3A36.178Z">
+                <div>Kanjiru</div>
+              </a>
                 <video controls autoplay src="${src}"></video>
             </body>
           </html>
